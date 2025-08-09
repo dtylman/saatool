@@ -25,7 +25,8 @@ func NewMainWindow() *MainWindow {
 	hebrewText := `יום יום אני תולש מהלוח דף. יום ראשון - כמעט. יום שני - I'm happy! ויום שלישי - 365 ימים בשנה!`
 	hebrewText += "\n" // Adding a newline for better visibility
 	hebrewText += "This is a test of RTL text rendering."
-
+	hebrewText += "\n" // Adding another newline for clarity
+	hebrewText += "שלום שלום נתראה בחלום. אני יושב על הכיסא ומחכה לך."
 	rtlWidget := NewBidiLabel(hebrewText)
 
 	content := container.NewVBox(
