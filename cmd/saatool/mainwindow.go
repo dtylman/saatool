@@ -32,6 +32,7 @@ func NewMainWindow() *MainWindow {
 	content := container.NewVBox(
 		label,
 		rtlWidget,
+		NewBidiText(sampleText),
 		widget.NewButton("Click Me", func() {
 			label.SetText("Button clicked!")
 		}),
