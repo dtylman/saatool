@@ -4,7 +4,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
@@ -16,9 +15,11 @@ func main() {
 	w.CenterOnScreen()
 
 	closeBtn := widget.NewButton("Close", func() {
-		dialog.ShowInformation("Info", "This is a simple Fyne application.", w)
+		//dialog.ShowInformation("Info", "This is a simple Fyne application.", w)
+		w.Close()
 	})
 
+	bidiText := NewBidiText(sampleText)
 	w.SetContent(
 		container.NewBorder(
 			nil, // top
@@ -28,7 +29,7 @@ func main() {
 			), // bottom
 			nil, // left
 			nil, // right
-			widget.NewLabel("Hello World!"),
+			bidiText,
 		),
 	)
 
