@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/widgets"
 )
 
 // MainWindow represents the main window of the SaaTool application.
@@ -17,25 +18,25 @@ type MainWindow struct {
 // NewMainWindow creates a new instance of the main window
 func NewMainWindow() *MainWindow {
 	a := app.New()
+	a.Settings().SetTheme(&widgets.Theme{})
 	w := a.NewWindow("SaaTool Main Window")
 	// w.Resize(fyne.NewSize(200, 300))
 
 	label := widget.NewLabel("Welcome to SaaTool!")
 
 	hebrewText := `יום יום אני תולש מהלוח דף. יום ראשון - כמעט. יום שני - I'm happy! ויום שלישי - 365 ימים בשנה!`
-	hebrewText += "\n" // Adding a newline for better visibility
-	hebrewText += "This is a test of RTL text rendering."
+	hebrewText += "\nThis is a test of RTL text rendering."
 	hebrewText += "\n" // Adding another newline for clarity
 	hebrewText += "שלום שלום נתראה בחלום. אני יושב על הכיסא ומחכה לך."
-	rtlWidget := NewBidiLabel(hebrewText)
 
-	content := container.NewVBox(
-		label,
-		rtlWidget,
-		NewBidiText(sampleText),
+	content := container.NewBorder(
+		label, // Top: label docked at top
 		widget.NewButton("Click Me", func() {
 			label.SetText("Button clicked!")
-		}),
+		}), // Bottom: button docked at bottom
+		nil, // Left
+		nil, // Right
+		container.NewStack(widgets.NewBidiText(hebrewText)), // Center: BiDi text fills all available space
 	)
 
 	w.SetContent(content)
