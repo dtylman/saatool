@@ -1,5 +1,14 @@
 package translation
 
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/dtylman/saatool/config"
+)
+
 // Character represents a character in a translation project.
 type Character struct {
 	// Name is the name of the character.
@@ -50,4 +59,29 @@ type Project struct {
 	Target Unit `json:"target"`
 	// Prompt is the translation prompt or instructions for the translator.
 	Prompt string `json:"prompt"`
+}
+
+// LoadProject loads a project by its index from the configuration.
+func LoadProject(index int) (*Project, error) {
+	if index < 0 || index >= len(config.Projects.Projects) {
+		return nil, fmt.Errorf("project index out of range")
+	}
+	project := config.Projects.Projects[index]
+
+	return loadProjectFile(project)
+}
+
+// loadProjectFile loads a project from a file based on its name.
+func loadProjectFile(filePath string) (*Project, error) {
+	log.Printf("loading project from file: %v", filePath)
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading project file %s: %w", filePath, err)
+	}
+	var project Project
+	err = json.Unmarshal(data, &project)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling project data: %w", err)
+	}
+	return &project, nil
 }
