@@ -10,7 +10,7 @@ import (
 type ProjectsView struct {
 	OnProjectSelected func()
 	View              fyne.CanvasObject
-	projectEditor     *ProjectEditor
+	projectEditor     *ProjectCard
 }
 
 // NewProjectsView creates a new ProjectsViewStruct instance.

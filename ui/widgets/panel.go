@@ -43,6 +43,9 @@ func (r *panelRenderer) MinSize() fyne.Size {
 
 // Layout arranges the child widget to fill the entire panel.
 func (r *panelRenderer) Layout(size fyne.Size) {
+	if r.panel.child == nil {
+		return
+	}
 	r.panel.child.Resize(size)
 }
 
@@ -53,6 +56,9 @@ func (r *panelRenderer) Objects() []fyne.CanvasObject {
 
 // Refresh is called when the widget's state changes.
 func (r *panelRenderer) Refresh() {
+	if r.panel.child == nil {
+		return
+	}
 	r.panel.child.Refresh()
 }
 

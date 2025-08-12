@@ -9,6 +9,7 @@ import (
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
+// ProjectList represents the project selection UI.
 type ProjectList struct {
 	// View is the main container for the project list UI.
 	View       fyne.CanvasObject

@@ -7,8 +7,8 @@ import (
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
-// ProjectEditor provides a UI for editing a translation.Project.
-type ProjectEditor struct {
+// ProjectCard provides a UI for editing a translation.Project.
+type ProjectCard struct {
 	Project       *translation.Project
 	nameEntry     *widget.Entry
 	titleEntry    *widget.Entry
@@ -16,10 +16,12 @@ type ProjectEditor struct {
 	synopsisEntry *widget.Entry
 	genreEntry    *widget.Entry
 	promptEntry   *widget.Entry
+	characterList *CharacterList
 	View          fyne.CanvasObject
 }
 
-func (ed *ProjectEditor) SetProject(project *translation.Project) {
+// SetProject updates the ProjectCard with the given project details.
+func (ed *ProjectCard) SetProject(project *translation.Project) {
 	ed.Project = project
 	ed.nameEntry.SetText(project.Name)
 	ed.titleEntry.SetText(project.Title)
@@ -27,11 +29,12 @@ func (ed *ProjectEditor) SetProject(project *translation.Project) {
 	ed.synopsisEntry.SetText(project.Synopsis)
 	ed.genreEntry.SetText(project.Genre)
 	ed.promptEntry.SetText(project.Prompt)
+	ed.characterList.SetCharacters(project.Characters)
 }
 
 // NewProjectEditor creates a new ProjectEditor for the given project.
-func NewProjectEditor() *ProjectEditor {
-	ed := &ProjectEditor{}
+func NewProjectEditor() *ProjectCard {
+	ed := &ProjectCard{}
 
 	ed.nameEntry = widget.NewEntry()
 	ed.nameEntry.Wrapping = fyne.TextWrapWord
@@ -48,8 +51,10 @@ func NewProjectEditor() *ProjectEditor {
 	ed.promptEntry.MultiLine = true
 	ed.promptEntry.SetMinRowsVisible(3)
 
+	ed.characterList = NewCharactersList()
+
 	characters := widgets.NewPanel(
-		widget.NewLabel("Characters (to be implemented)"),
+		ed.characterList.View,
 		fyne.NewSize(200, 100),
 	)
 	form := widget.NewForm(
@@ -61,13 +66,15 @@ func NewProjectEditor() *ProjectEditor {
 		widget.NewFormItem("Prompt", ed.promptEntry),
 		widget.NewFormItem("Characters", characters),
 	)
+
 	card := widget.NewCard("Edit Project", "Edit the details of your translation project", form)
+
 	ed.View = card
 	return ed
 }
 
 // Save updates the Project fields from the UI entries.
-func (ed *ProjectEditor) Save() {
+func (ed *ProjectCard) Save() {
 	ed.Project.Name = ed.nameEntry.Text
 	ed.Project.Title = ed.titleEntry.Text
 	ed.Project.Author = ed.authorEntry.Text
