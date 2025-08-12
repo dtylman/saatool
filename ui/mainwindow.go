@@ -32,7 +32,7 @@ func NewMainWindow(a fyne.App) *MainWindow {
 
 	// Only Projects and Settings tabs by default
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Projects", projectView.View()),
+		container.NewTabItem("Projects", projectView.View),
 		container.NewTabItem("Settings", settingsView),
 	)
 	tabs.SetTabLocation(container.TabLocationBottom)

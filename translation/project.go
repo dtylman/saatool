@@ -68,11 +68,11 @@ func LoadProject(index int) (*Project, error) {
 	}
 	project := config.Projects.Projects[index]
 
-	return loadProjectFile(project)
+	return LoadProjectFile(project)
 }
 
-// loadProjectFile loads a project from a file based on its name.
-func loadProjectFile(filePath string) (*Project, error) {
+// LoadProjectFile loads a project from a file based on its name.
+func LoadProjectFile(filePath string) (*Project, error) {
 	log.Printf("loading project from file: %v", filePath)
 	data, err := os.ReadFile(filePath)
 	if err != nil {

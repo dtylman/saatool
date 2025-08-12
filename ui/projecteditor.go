@@ -1,12 +1,10 @@
 package ui
 
 import (
-	"strconv"
-
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/translation"
+	"github.com/dtylman/saatool/ui/widgets"
 )
 
 // ProjectEditor provides a UI for editing a translation.Project.
@@ -18,81 +16,54 @@ type ProjectEditor struct {
 	synopsisEntry *widget.Entry
 	genreEntry    *widget.Entry
 	promptEntry   *widget.Entry
-	charList      *widget.List
-	addCharBtn    *widget.Button
-	removeCharBtn *widget.Button
-	sourceCount   *widget.Label
-	targetCount   *widget.Label
-	container     *fyne.Container
+	View          fyne.CanvasObject
+}
+
+func (ed *ProjectEditor) SetProject(project *translation.Project) {
+	ed.Project = project
+	ed.nameEntry.SetText(project.Name)
+	ed.titleEntry.SetText(project.Title)
+	ed.authorEntry.SetText(project.Author)
+	ed.synopsisEntry.SetText(project.Synopsis)
+	ed.genreEntry.SetText(project.Genre)
+	ed.promptEntry.SetText(project.Prompt)
 }
 
 // NewProjectEditor creates a new ProjectEditor for the given project.
-func NewProjectEditor(p *translation.Project) *ProjectEditor {
-	ed := &ProjectEditor{Project: p}
+func NewProjectEditor() *ProjectEditor {
+	ed := &ProjectEditor{}
 
 	ed.nameEntry = widget.NewEntry()
-	ed.nameEntry.SetText(p.Name)
+	ed.nameEntry.Wrapping = fyne.TextWrapWord
 
 	ed.titleEntry = widget.NewEntry()
-	ed.titleEntry.SetText(p.Title)
-
 	ed.authorEntry = widget.NewEntry()
-	ed.authorEntry.SetText(p.Author)
-
 	ed.synopsisEntry = widget.NewEntry()
-	ed.synopsisEntry.SetText(p.Synopsis)
-
+	ed.synopsisEntry.Wrapping = fyne.TextWrapWord
+	ed.synopsisEntry.MultiLine = true
+	ed.synopsisEntry.SetMinRowsVisible(3)
 	ed.genreEntry = widget.NewEntry()
-	ed.genreEntry.SetText(p.Genre)
-
 	ed.promptEntry = widget.NewEntry()
-	ed.promptEntry.SetText(p.Prompt)
+	ed.promptEntry.Wrapping = fyne.TextWrapWord
+	ed.promptEntry.MultiLine = true
+	ed.promptEntry.SetMinRowsVisible(3)
 
-	ed.sourceCount = widget.NewLabel(
-		"Source paragraphs: " + strconv.Itoa(len(p.Source.Paragraphs)),
+	characters := widgets.NewPanel(
+		widget.NewLabel("Characters (to be implemented)"),
+		fyne.NewSize(200, 100),
 	)
-	ed.targetCount = widget.NewLabel(
-		"Target paragraphs: " + strconv.Itoa(len(p.Target.Paragraphs)),
+	form := widget.NewForm(
+		widget.NewFormItem("Name", ed.nameEntry),
+		widget.NewFormItem("Title", ed.titleEntry),
+		widget.NewFormItem("Author", ed.authorEntry),
+		widget.NewFormItem("Genre", ed.genreEntry),
+		widget.NewFormItem("Synopsis", ed.synopsisEntry),
+		widget.NewFormItem("Prompt", ed.promptEntry),
+		widget.NewFormItem("Characters", characters),
 	)
-
-	ed.charList = widget.NewList(
-		func() int { return len(p.Characters) },
-		func() fyne.CanvasObject { return widget.NewLabel("") },
-		func(i widget.ListItemID, o fyne.CanvasObject) {
-			label := o.(*widget.Label)
-			label.SetText(p.Characters[i].Name)
-		},
-	)
-
-	ed.addCharBtn = widget.NewButton("Add Character", func() {
-	})
-
-	ed.removeCharBtn = widget.NewButton("Remove Character", func() {
-	})
-
-	ed.container = container.NewVBox(
-		widget.NewLabel("Edit Translation Project"),
-		widget.NewForm(
-			widget.NewFormItem("Name", ed.nameEntry),
-			widget.NewFormItem("Title", ed.titleEntry),
-			widget.NewFormItem("Author", ed.authorEntry),
-			widget.NewFormItem("Synopsis", ed.synopsisEntry),
-			widget.NewFormItem("Genre", ed.genreEntry),
-			widget.NewFormItem("Prompt", ed.promptEntry),
-		),
-		ed.sourceCount,
-		ed.targetCount,
-		widget.NewLabel("Characters:"),
-		container.NewHBox(ed.addCharBtn, ed.removeCharBtn),
-		ed.charList,
-	)
-
+	card := widget.NewCard("Edit Project", "Edit the details of your translation project", form)
+	ed.View = card
 	return ed
-}
-
-// View returns the fyne.CanvasObject for this editor.
-func (ed *ProjectEditor) View() fyne.CanvasObject {
-	return ed.container
 }
 
 // Save updates the Project fields from the UI entries.

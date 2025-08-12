@@ -19,8 +19,6 @@ func (t *Theme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color
 
 func (t *Theme) Font(s fyne.TextStyle) fyne.Resource {
 	return fyne.NewStaticResource("SimpleCLM-Medium.ttf", SimpleCLMMedium)
-	//return fyne.NewStaticResource("YehudaCLM-Light.otf", YehudaCLMLight)
-
 }
 
 func (t *Theme) Icon(name fyne.ThemeIconName) fyne.Resource {
