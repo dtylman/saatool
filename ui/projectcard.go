@@ -67,7 +67,7 @@ func NewProjectEditor() *ProjectCard {
 		widget.NewFormItem("Characters", characters),
 	)
 
-	card := widget.NewCard("Edit Project", "Edit the details of your translation project", form)
+	card := widget.NewCard("", "Translation Project", form)
 
 	ed.View = card
 	return ed

@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/translation"
 )
 
 // MainWindow represents the main window of the SaaTool application.
@@ -44,14 +45,10 @@ func NewMainWindow(a fyne.App) *MainWindow {
 }
 
 // ShowTranslationView switches the window to the translation view for the selected project
-func (mw *MainWindow) ShowTranslationView() {
-	// Add a back button to return to tabs
-	backBtn := widget.NewButton("Back", func() {
+func (mw *MainWindow) ShowTranslationView(project *translation.Project) {
+	tv := NewTranslationView(project)
+	tv.OnClose = func() {
 		mw.Window.SetContent(mw.tabs)
-	})
-	translationView := container.NewVBox(
-		backBtn,
-		widget.NewLabel("Translation Window (to be implemented)"),
-	)
-	mw.Window.SetContent(translationView)
+	}
+	mw.Window.SetContent(tv.View)
 }

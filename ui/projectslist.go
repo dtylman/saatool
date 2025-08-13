@@ -35,7 +35,7 @@ func NewProjectList() *ProjectList {
 
 	content := container.NewBorder(nil, nil, toolbar, nil, list)
 
-	card := widget.NewCard("Projects", "List of projects", content)
+	card := widget.NewCard("", "Projects", content)
 
 	pl.View = widgets.NewPanel(card, fyne.NewSize(200, 200))
 	return pl
