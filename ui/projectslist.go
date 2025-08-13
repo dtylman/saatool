@@ -4,6 +4,9 @@ import (
 	"log"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/ui/widgets"
@@ -19,6 +22,7 @@ type ProjectList struct {
 // NewProjectList creates a new ProjectList instance with a card view.
 func NewProjectList() *ProjectList {
 	pl := &ProjectList{}
+
 	list := widget.NewList(
 		pl.len,
 		pl.createItem,
@@ -26,13 +30,34 @@ func NewProjectList() *ProjectList {
 	)
 	list.OnSelected = pl.onSelected
 
-	card := widget.NewCard("Projects", "List of projects", list)
+	btnLoadProject := widget.NewToolbarAction(widgets.LoadIcon, pl.onLoadProject)
+	toolbar := widget.NewToolbar(btnLoadProject)
+
+	content := container.NewBorder(nil, nil, toolbar, nil, list)
+
+	card := widget.NewCard("Projects", "List of projects", content)
 
 	pl.View = widgets.NewPanel(card, fyne.NewSize(200, 200))
 	return pl
 }
 
-// len returns the number of items in the project list.
+func (pl *ProjectList) onLoadProject() {
+	fd := dialog.NewFileOpen(pl.onProjectFileLoaded, fyne.CurrentApp().Driver().AllWindows()[0])
+	fd.SetFilter(storage.NewExtensionFileFilter([]string{".json"}))
+	fd.Show()
+}
+
+func (pl *ProjectList) onProjectFileLoaded(reader fyne.URIReadCloser, err error) {
+	if err != nil || reader == nil {
+		return
+	}
+	defer reader.Close()
+	projectPath := reader.URI().Path()
+	config.Projects.Projects = append(config.Projects.Projects, projectPath)
+	config.SaveProjects()
+	pl.View.Refresh()
+}
+
 func (pl *ProjectList) len() int {
 	return len(config.Projects.Projects)
 }
