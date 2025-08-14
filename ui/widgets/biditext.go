@@ -137,7 +137,7 @@ func (r *BidiText) measureLayout(words []string) int {
 	minX := r.Padding
 	minY := r.Padding
 	maxX := r.Size().Width - r.Padding
-	maxY := r.Size().Height - (r.Padding - lineHeight)
+	maxY := r.Size().Height - (r.Padding * 2)
 
 	x := minX
 	y := minY
@@ -155,7 +155,7 @@ func (r *BidiText) measureLayout(words []string) int {
 			y += lineHeight // Move to next line
 		}
 
-		if y >= maxY { // Reached the end of the available space
+		if y+lineHeight >= maxY { // Reached the end of the available space
 			return i
 		}
 
@@ -204,7 +204,7 @@ func (r *bidiTextRenderer) initializeObjects() {
 	r.texts = make([]*canvas.Text, 0)
 
 	if r.parent.Offset >= len(r.parent.Words) {
-		log.Printf("Offset %d exceeds words length %d", r.parent.Offset, len(r.parent.Words))
+		log.Printf("offset %d exceeds words length %d", r.parent.Offset, len(r.parent.Words))
 		return
 	}
 
