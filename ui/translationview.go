@@ -32,7 +32,8 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 		widget.NewButton("Back", tv.onClose),
 	)
 
-	txt := widgets.NewBidiText(project.Target.Paragraphs[0].Text)
+	txt := widgets.NewBidiText()
+	txt.SetText(project.Target.Paragraphs[0].Text)
 
 	content := container.NewBorder(
 		nil,

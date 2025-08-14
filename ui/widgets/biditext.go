@@ -39,10 +39,10 @@ type BidiText struct {
 	Padding float32
 }
 
-func NewBidiText(text string) *BidiText {
-	text = strings.Replace(text, "\n", " <NL> ", -1)
+// NewBidiText creates a new BidiText widget with default settings.
+func NewBidiText() *BidiText {
 	b := &BidiText{
-		Words:     strings.Fields(text),
+		Words:     []string{},
 		Direction: RightToLeft,
 		TextSize:  theme.TextSize(),
 		Padding:   theme.InnerPadding(),
@@ -53,6 +53,41 @@ func NewBidiText(text string) *BidiText {
 	return b
 }
 
+func (b *BidiText) SetText(text string) {
+	words := strings.Fields(strings.Replace(text, "\n", " <NL> ", -1))
+	b.Words = words
+	b.Refresh()
+}
+
+func (b *BidiText) SetDirection(direction Direction) {
+	if b.Direction != direction {
+		b.Direction = direction
+		b.Refresh()
+	}
+}
+
+func (b *BidiText) SetWords(words []string) {
+	b.Words = words
+	b.Refresh()
+}
+
+// SetColor sets the color of the BidiText.
+func (b *BidiText) SetColor(color color.Color) {
+	if b.Color != color {
+		b.Color = color
+		b.Refresh()
+	}
+}
+
+// SetTextSize sets the size of the text in the BidiText widget.
+func (b *BidiText) SetTextSize(size float32) {
+	if b.TextSize != size {
+		b.TextSize = size
+		b.Refresh()
+	}
+}
+
+// NewBidiTextWithWords creates a new BidiText widget with the specified words and default settings.
 func (b *BidiText) CreateRenderer() fyne.WidgetRenderer {
 	r := &bidiTextRenderer{
 		parent: b,
