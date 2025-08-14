@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/translation"
-	"github.com/dtylman/saatool/translator"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -129,11 +128,11 @@ func (tv *TranslationView) onSourceChange(checked bool) {
 
 func (tv *TranslationView) translate(paragraph int) {
 	log.Printf("Translating paragraph %d", paragraph)
-	translator.Translate(func(text string) string {
-		log.Printf("Translation result: %s", text)
-		tv.project.Target.Paragraphs[paragraph].Text = text
-		tv.updateText()
-		return text
-	})
+	// translator.Translate(func(text string) string {
+	// 	log.Printf("Translation result: %s", text)
+	// 	tv.project.Target.Paragraphs[paragraph].Text = text
+	// 	tv.updateText()
+	// 	return text
+	// })
 	log.Printf("Translation initiated for paragraph %d", paragraph)
 }
