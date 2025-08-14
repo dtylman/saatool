@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/translation"
+	"github.com/dtylman/saatool/translator"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -55,6 +56,7 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 
 	tv.View = content
 
+	tv.updateProgress()
 	tv.updateText()
 
 	return tv
@@ -73,11 +75,21 @@ func (tv *TranslationView) onNext() {
 		return
 	}
 	// Load the next paragraph
-	if tv.paragraph < len(tv.project.Target.Paragraphs)-1 {
-		tv.paragraph++
-		tv.updateText()
-		tv.updateProgress()
+	tv.SetParagraph(tv.paragraph + 1)
+}
+
+func (tv *TranslationView) SetParagraph(paragraph int) {
+	if (tv.paragraph == paragraph) || (paragraph < 0) || (paragraph >= len(tv.project.Target.Paragraphs)) {
+		return
 	}
+
+	tv.paragraph = paragraph
+	if !tv.source {
+		tv.translate(tv.paragraph)
+	}
+
+	tv.updateText()
+	tv.updateProgress()
 }
 
 func (tv *TranslationView) onPrevious() {
@@ -86,16 +98,13 @@ func (tv *TranslationView) onPrevious() {
 		tv.updateProgress()
 		return
 	}
+
 	// Load the previous paragraph
-	if tv.paragraph > 0 {
-		tv.paragraph--
-		tv.updateText()
-		tv.updateProgress()
-	}
+	tv.SetParagraph(tv.paragraph - 1)
 }
 
 func (tv *TranslationView) updateProgress() {
-	tv.lblProgress.SetText(fmt.Sprintf("p: %v (%v-%v)", tv.paragraph, tv.txt.Offset, tv.txt.Length))
+	tv.lblProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraph, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
 }
 
 func (tv *TranslationView) updateText() {
@@ -116,4 +125,15 @@ func (tv *TranslationView) updateText() {
 func (tv *TranslationView) onSourceChange(checked bool) {
 	tv.source = checked
 	tv.updateText()
+}
+
+func (tv *TranslationView) translate(paragraph int) {
+	log.Printf("Translating paragraph %d", paragraph)
+	translator.Translate(func(text string) string {
+		log.Printf("Translation result: %s", text)
+		tv.project.Target.Paragraphs[paragraph].Text = text
+		tv.updateText()
+		return text
+	})
+	log.Printf("Translation initiated for paragraph %d", paragraph)
 }
