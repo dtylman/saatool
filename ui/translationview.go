@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -17,6 +18,7 @@ type TranslationView struct {
 	View        fyne.CanvasObject
 	project     *translation.Project
 	txt         *widgets.BidiText
+	panelMain   *fyne.Container
 	lblProgress *widget.Label
 	source      bool // true for source language, false for target language
 	paragraph   int  // current paragraph index
@@ -45,12 +47,14 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	tv.txt.Padding = 10
 	tv.txt.Spacing = 15
 
+	tv.panelMain = container.NewStack(tv.txt)
+
 	content := container.NewBorder(
 		nil,
 		toolBar,
 		nil,
 		nil,
-		tv.txt,
+		tv.panelMain,
 	)
 
 	tv.View = content
@@ -128,11 +132,19 @@ func (tv *TranslationView) onSourceChange(checked bool) {
 
 func (tv *TranslationView) translate(paragraph int) {
 	log.Printf("Translating paragraph %d", paragraph)
-	// translator.Translate(func(text string) string {
-	// 	log.Printf("Translation result: %s", text)
-	// 	tv.project.Target.Paragraphs[paragraph].Text = text
-	// 	tv.updateText()
-	// 	return text
+	go func() {
+		time.Sleep(time.Second)
+		fyne.Do(func() {
+			card := container.NewVBox(
+				widget.NewLabel("Translating..."),
+				widget.NewProgressBarInfinite(),
+			)
+			tv.panelMain.Objects = []fyne.CanvasObject{card}
+			tv.txt.SetWords([]string{"Translating...", "Please wait..."})
+		})
+
+	}()
 	// })
+
 	log.Printf("Translation initiated for paragraph %d", paragraph)
 }
