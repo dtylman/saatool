@@ -6,6 +6,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/ui/widgets"
 )
@@ -18,6 +20,13 @@ type MainWindow struct {
 	fyneApp fyne.App
 	window  fyne.Window
 	toolBar *fyne.Container
+}
+
+// OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
+func (mw *MainWindow) OpenFileDialog(callback func(reader fyne.URIReadCloser, err error), filter ...string) {
+	fd := dialog.NewFileOpen(callback, mw.window)
+	fd.SetFilter(storage.NewExtensionFileFilter(filter))
+	fd.Show()
 }
 
 func NewMainWindow() error {
@@ -43,7 +52,7 @@ func (mw *MainWindow) ShowAndRun() {
 	mw.window.Resize(fyne.NewSize(800, 600))
 	mw.window.SetMaster()
 
-	mw.onProjectsTapped()
+	mw.onProjectTapped()
 
 	mw.window.ShowAndRun()
 }
@@ -55,7 +64,7 @@ func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 		widget.NewLabel("SaaTool"),
 	)
 
-	btnTranslate := widget.NewButtonWithIcon("Projects", widgets.LoadIcon, mw.onProjectsTapped)
+	btnTranslate := widget.NewButtonWithIcon("Project", widgets.LoadIcon, mw.onProjectTapped)
 	btnSettings := widget.NewButtonWithIcon("Settings", widgets.LoadIcon, mw.onSettingsTapped)
 
 	panelBottom := container.NewVBox(
@@ -106,9 +115,9 @@ func (mw *MainWindow) onSettingsTapped() {
 	)
 }
 
-func (mw *MainWindow) onProjectsTapped() {
+func (mw *MainWindow) onProjectTapped() {
 	mw.SetContent(
-		NewProjectsView().View,
+		NewProjectView().View,
 	)
 }
 

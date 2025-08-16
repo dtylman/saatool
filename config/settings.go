@@ -19,40 +19,18 @@ type DeepSeekSettings struct {
 type Settings struct {
 	// DeepSeek contains the settings for the DeepSeek translation service.
 	DeepSeek DeepSeekSettings `json:"deepseek"`
+	//ActiveProjectFile is the path to the currently active project file.
+	ActiveProjectFile string `json:"active_project_file"`
 }
 
 const (
 	settingsFileName = ".saat_settings.json"
-	projectsFileName = "saat_projects.json"
 )
-
-// ProjectsList represents a list of translation projects.
-type ProjectsList struct {
-	// Projects is a list of translation projects.
-	Projects []string `json:"projects"`
-}
 
 var (
 	// Options holds the global settings for the application.
 	Options Settings
-	// Projects holds the list of translation projects.
-	Projects ProjectsList
 )
-
-// SaveProjects saves the current list of projects to the user's home directory.
-func SaveProjects() error {
-	return saveProjects(getFilePath(projectsFileName))
-}
-
-// LoadProjects loads the list of projects from the user's home directory.
-func LoadProjects() {
-	filePath := getFilePath(projectsFileName)
-	err := loadProjects(filePath)
-	if err != nil {
-		log.Printf("error loading projects: %v", err)
-		Projects = ProjectsList{} // Default to empty projects if load fails
-	}
-}
 
 // SaveSettings saves the current settings to the user's home directory.
 func SaveSettings() error {
@@ -97,25 +75,6 @@ func saveSettings(filePath string) error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
-func loadProjects(filePath string) error {
-	log.Printf("loading projects from %v", filePath)
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, &Projects)
-}
-
-func saveProjects(filePath string) error {
-	log.Printf("saving projects to %v", filePath)
-	data, err := json.Marshal(Projects)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filePath, data, 0644)
-}
-
 func init() {
 	LoadSettings()
-	LoadProjects()
 }
