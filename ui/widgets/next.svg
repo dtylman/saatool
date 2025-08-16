@@ -1,0 +1,7 @@
+<svg width="48" height="60" viewBox="0 0 48 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="24" cy="30" r="20" fill="#1976D2" opacity="0.15"/>
+    <circle cx="24" cy="30" r="20" stroke="#1976D2" stroke-width="3" fill="none"/>
+    <polygon points="20,18 34,30 20,42" fill="#1976D2"/>
+    <rect x="14" y="18" width="4" height="24" rx="2" fill="#1976D2"/>
+    <text x="24" y="58" text-anchor="middle" font-size="12" fill="#1976D2" font-family="Arial, sans-serif">next</text>
+</svg>

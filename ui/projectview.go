@@ -60,8 +60,8 @@ func NewProjectView() *ProjectView {
 	)
 
 	Main.ClearActions()
-	Main.AddAction("Open", widgets.LoadIcon, pv.onOpenTapped)
-	Main.AddAction("Translate", widgets.LoadIcon, pv.onTranslateTapped)
+	Main.AddAction("Open", widgets.IconOpen, pv.onOpenTapped)
+	Main.AddAction("Translate", widgets.IconTranslate, pv.onTranslateTapped)
 
 	pv.View = form
 

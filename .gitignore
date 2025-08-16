@@ -32,3 +32,4 @@ go.work.sum
 # .vscode/
 cmd/saatool/saatool
 *.apk
+cmd/saatool/__debug*

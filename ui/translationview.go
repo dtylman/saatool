@@ -34,8 +34,8 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 
 	Main.ClearActions()
 	Main.AddActionWidget(widget.NewCheck("Source", tv.onSourceChange))
-	Main.AddAction("Next", widgets.LoadIcon, tv.onNext)
-	Main.AddAction("Previous", widgets.LoadIcon, tv.onPrevious)
+	Main.AddAction("Next", widgets.IconNext, tv.onNext)
+	Main.AddAction("Previous", widgets.IconPrev, tv.onPrevious)
 	Main.AddActionWidget(tv.lblProgress)
 	Main.AddActionWidget(widget.NewSeparator())
 

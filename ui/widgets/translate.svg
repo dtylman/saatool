@@ -1,0 +1,9 @@
+<svg width="48" height="60" viewBox="0 0 48 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g>
+        <path d="M24 12h12M24 12c-2.5 6.5-7.5 13-16 16M24 12c2.5 6.5 7.5 13 16 16" stroke="#1976D2" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M16 32h16M20 36h8" stroke="#1976D2" stroke-width="3" stroke-linecap="round"/>
+        <path d="M28 28l4 8" stroke="#1976D2" stroke-width="3" stroke-linecap="round"/>
+        <path d="M20 28l-4 8" stroke="#1976D2" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <text x="24" y="58" text-anchor="middle" font-size="12" fill="#1976D2" font-family="Arial, sans-serif">translate</text>
+</svg>

@@ -1,0 +1,34 @@
+<svg width="48" height="60" viewBox="0 0 48 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g>
+        <!-- Large gear -->
+        <circle cx="24" cy="24" r="10" fill="#90CAF9" stroke="#1976D2" stroke-width="2"/>
+        <!-- Gear teeth -->
+        <g>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(0 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(30 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(60 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(90 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(120 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(150 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(180 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(210 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(240 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(270 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(300 24 24)"/>
+            <rect x="23" y="8" width="2" height="5" fill="#1976D2" transform="rotate(330 24 24)"/>
+        </g>
+        <!-- Small gear -->
+        <circle cx="36" cy="40" r="5" fill="#BBDEFB" stroke="#1976D2" stroke-width="1.5"/>
+        <g>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(0 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(45 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(90 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(135 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(180 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(225 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(270 36 40)"/>
+            <rect x="35.25" y="33.5" width="1.5" height="3" fill="#1976D2" transform="rotate(315 36 40)"/>
+        </g>
+    </g>
+    <text x="24" y="58" text-anchor="middle" font-size="12" fill="#1976D2" font-family="Arial, sans-serif">settings</text>
+</svg>

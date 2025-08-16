@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
+	"fyne.io/x/fyne/layout"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -61,21 +62,19 @@ func (mw *MainWindow) ShowAndRun() {
 func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 	fyne.Do(func() {
 		panelTop := container.NewHBox(
-			widget.NewIcon(widgets.LoadIcon),
+			widget.NewIcon(widgets.IconLogo),
 			widget.NewLabel("SaaTool"),
 		)
 
-		btnTranslate := widget.NewButtonWithIcon("Project", widgets.LoadIcon, mw.onProjectTapped)
-		btnSettings := widget.NewButtonWithIcon("Settings", widgets.LoadIcon, mw.onSettingsTapped)
-
 		panelBottom := container.NewVBox(
 			mw.toolBar,
-			widgets.NewPanel(
-				container.NewHBox(
-					btnTranslate,
-					btnSettings,
-				), fyne.NewSize(0, 50),
+
+			layout.NewResponsiveLayout(
+				layout.Responsive(widget.NewButtonWithIcon("Project", widgets.IconProject, mw.onProjectTapped), 0.33),
+				layout.Responsive(widget.NewButtonWithIcon("Settings", widgets.IconSettings, mw.onSettingsTapped), 0.33),
+				layout.Responsive(widget.NewButtonWithIcon("Log", widgets.IconLog, mw.onLogTapped), 0.33),
 			),
+
 			container.NewHBox(
 				widget.NewLabel("Status: Ready"),
 			),
@@ -120,6 +119,12 @@ func (mw *MainWindow) onSettingsTapped() {
 func (mw *MainWindow) onProjectTapped() {
 	mw.SetContent(
 		NewProjectView().View,
+	)
+}
+
+func (mw *MainWindow) onLogTapped() {
+	mw.SetContent(
+		widget.NewLabel("Log Page (to be implemented)"),
 	)
 }
 
