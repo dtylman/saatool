@@ -8,6 +8,7 @@ require fyne.io/fyne/v2 v2.6.2
 
 require (
 	fyne.io/systray v1.11.0 // indirect
+	fyne.io/x/fyne v0.0.0-20250418202416-58a230ad1acb // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/cohesion-org/deepseek-go v1.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

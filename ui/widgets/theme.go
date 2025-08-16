@@ -26,5 +26,14 @@ func (t *Theme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (t *Theme) Size(name fyne.ThemeSizeName) float32 {
+	// if name == fyne.ThemeSizeName("innerPadding") {
+	// 	return 5
+	// }
+	// if name == fyne.ThemeSizeName("iconInline") {
+	// 	return 20
+	// }
+	// if name == fyne.ThemeSizeName("text") {
+	// 	return 16
+	// }
 	return theme.DefaultTheme().Size(name)
 }

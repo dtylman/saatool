@@ -1,10 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"log"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -14,9 +14,9 @@ import (
 
 // ProjectList represents the project selection UI.
 type ProjectList struct {
-	// View is the main container for the project list UI.
-	View       fyne.CanvasObject
-	OnSelected func(project string)
+	View          fyne.CanvasObject
+	OnSelected    func(project string)
+	selectedIndex int // currently selected project index
 }
 
 // NewProjectList creates a new ProjectList instance with a card view.
@@ -30,12 +30,9 @@ func NewProjectList() *ProjectList {
 	)
 	list.OnSelected = pl.onSelected
 
-	btnLoadProject := widget.NewToolbarAction(widgets.LoadIcon, pl.onLoadProject)
-	toolbar := widget.NewToolbar(btnLoadProject)
-
-	content := container.NewBorder(nil, nil, toolbar, nil, list)
-
-	card := widget.NewCard("", "Projects", content)
+	Main.AddAction("Load", widgets.LoadIcon, pl.onLoadProject)
+	Main.AddAction("Remove", widgets.LoadIcon, pl.onRemoveProject)
+	card := widget.NewCard("", "Projects", list)
 
 	pl.View = widgets.NewPanel(card, fyne.NewSize(200, 200))
 	return pl
@@ -84,9 +81,28 @@ func (pl *ProjectList) onSelected(id widget.ListItemID) {
 		log.Println("Invalid project selection")
 		return
 	}
+	pl.selectedIndex = id
 	project := config.Projects.Projects[id]
 	log.Printf("Selected project: %s", project)
 	if pl.OnSelected != nil {
 		pl.OnSelected(project)
+	}
+}
+
+func (pl *ProjectList) onRemoveProject() {
+	if pl.selectedIndex < 0 || pl.selectedIndex >= len(config.Projects.Projects) {
+		Main.ShowMessage("No project selected to remove.")
+		return
+	}
+
+	projectName := config.Projects.Projects[pl.selectedIndex]
+	config.Projects.Projects = append(config.Projects.Projects[:pl.selectedIndex], config.Projects.Projects[pl.selectedIndex+1:]...)
+	config.SaveProjects()
+	pl.View.Refresh()
+
+	Main.ShowMessage(fmt.Sprintf("Project '%s' removed successfully.", projectName))
+	pl.selectedIndex = -1 // Reset selection
+	if pl.OnSelected != nil {
+		pl.OnSelected("")
 	}
 }

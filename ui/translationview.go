@@ -14,7 +14,6 @@ import (
 )
 
 type TranslationView struct {
-	OnClose     func()
 	View        fyne.CanvasObject
 	project     *translation.Project
 	txt         *widgets.BidiText
@@ -33,14 +32,12 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 		paragraph:   0,     // start with the first paragraph
 	}
 
-	toolBar := container.NewHBox(
-		widget.NewCheck("Source", tv.onSourceChange),
-		widget.NewButton("Next", tv.onNext),
-		widget.NewButton("Previous", tv.onPrevious),
-		tv.lblProgress,
-		widget.NewSeparator(),
-		widget.NewButton("Back", tv.onClose),
-	)
+	Main.ClearActions()
+	Main.AddActionWidget(widget.NewCheck("Source", tv.onSourceChange))
+	Main.AddAction("Next", widgets.LoadIcon, tv.onNext)
+	Main.AddAction("Previous", widgets.LoadIcon, tv.onPrevious)
+	Main.AddActionWidget(tv.lblProgress)
+	Main.AddActionWidget(widget.NewSeparator())
 
 	tv.txt.Direction = widgets.RightToLeft
 	tv.txt.TextSize = 40
@@ -48,27 +45,12 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	tv.txt.Spacing = 15
 
 	tv.panelMain = container.NewStack(tv.txt)
-
-	content := container.NewBorder(
-		nil,
-		toolBar,
-		nil,
-		nil,
-		tv.panelMain,
-	)
-
-	tv.View = content
+	tv.View = tv.panelMain
 
 	tv.updateProgress()
 	tv.updateText()
 
 	return tv
-}
-
-func (tv *TranslationView) onClose() {
-	if tv.OnClose != nil {
-		tv.OnClose()
-	}
 }
 
 func (tv *TranslationView) onNext() {

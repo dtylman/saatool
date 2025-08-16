@@ -1,54 +1,139 @@
 package ui
 
 import (
+	"errors"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/dtylman/saatool/translation"
+	"github.com/dtylman/saatool/ui/widgets"
 )
 
-// MainWindow represents the main window of the SaaTool application.
+// Main is the global instance of the main application window.
+var Main *MainWindow
+
+// MainWindow represents the main application window.
 type MainWindow struct {
-	app    fyne.App
-	Window fyne.Window
-	tabs   *container.AppTabs
+	fyneApp fyne.App
+	window  fyne.Window
+	toolBar *fyne.Container
 }
 
-// NewMainWindow creates a new instance of the main window
-func NewMainWindow(a fyne.App) *MainWindow {
-	w := a.NewWindow("SaaTool Main Window")
-	w.Resize(fyne.NewSize(800, 600))
-	w.SetMaster()
-
-	// Placeholder views for each module
-	mw := &MainWindow{
-		Window: w,
-		app:    a,
+func NewMainWindow() error {
+	if Main != nil {
+		return errors.New("main window already exists")
 	}
+	Main = &MainWindow{
+		fyneApp: app.New(),
+		window:  nil,
+		toolBar: container.NewHBox(),
+	}
+	return nil
+}
 
-	projectView := NewProjectsView()
-	projectView.OnProjectSelected = mw.ShowTranslationView
+// ShowAndRun creates the main application window and starts the Fyne event loop.
+func (mw *MainWindow) ShowAndRun() {
 
-	settingsView := widget.NewLabel("Settings Page (to be implemented)")
+	mw.fyneApp = app.New()
+	mw.fyneApp.Settings().SetTheme(&widgets.Theme{})
 
-	// Only Projects and Settings tabs by default
-	tabs := container.NewAppTabs(
-		container.NewTabItem("Projects", projectView.View),
-		container.NewTabItem("Settings", settingsView),
+	mw.window = mw.fyneApp.NewWindow("SaaTool")
+
+	mw.window.Resize(fyne.NewSize(800, 600))
+	mw.window.SetMaster()
+
+	mw.onProjectsTapped()
+
+	mw.window.ShowAndRun()
+}
+
+// SetContent sets the content of the main window.
+func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
+	panelTop := container.NewHBox(
+		widget.NewIcon(widgets.LoadIcon),
+		widget.NewLabel("SaaTool"),
 	)
-	tabs.SetTabLocation(container.TabLocationBottom)
 
-	w.SetContent(tabs)
-	mw.tabs = tabs
+	btnTranslate := widget.NewButtonWithIcon("Projects", widgets.LoadIcon, mw.onProjectsTapped)
+	btnSettings := widget.NewButtonWithIcon("Settings", widgets.LoadIcon, mw.onSettingsTapped)
 
-	return mw
+	panelBottom := container.NewVBox(
+		mw.toolBar,
+		widgets.NewPanel(
+			container.NewHBox(
+				btnTranslate,
+				btnSettings,
+			), fyne.NewSize(0, 50),
+		),
+		container.NewHBox(
+			widget.NewLabel("Status: Ready"),
+		),
+	)
+
+	mw.window.SetContent(
+		container.NewBorder(
+			panelTop,
+			panelBottom,
+			nil,
+			nil,
+			container.NewVScroll(content),
+		),
+	)
+
+	content.Show()
+	content.Refresh()
 }
 
-// ShowTranslationView switches the window to the translation view for the selected project
-func (mw *MainWindow) ShowTranslationView(project *translation.Project) {
-	tv := NewTranslationView(project)
-	tv.OnClose = func() {
-		mw.Window.SetContent(mw.tabs)
-	}
-	mw.Window.SetContent(tv.View)
+func (mw *MainWindow) ClearActions() {
+	mw.toolBar.RemoveAll()
+	mw.toolBar.Refresh()
+}
+
+func (mw *MainWindow) AddActionWidget(widget fyne.CanvasObject) {
+	mw.toolBar.Add(widget)
+	mw.toolBar.Refresh()
+}
+
+func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func()) {
+	btn := widget.NewButtonWithIcon(label, icon, action)
+	mw.toolBar.Add(btn)
+}
+
+func (mw *MainWindow) onSettingsTapped() {
+	mw.SetContent(
+		widget.NewLabel("Settings Page (to be implemented)"),
+	)
+}
+
+func (mw *MainWindow) onProjectsTapped() {
+	mw.SetContent(
+		NewProjectsView().View,
+	)
+}
+
+func (mw *MainWindow) ShowMessage(message string) {
+	dialog := widget.NewPopUp(
+		widget.NewLabel(message),
+		mw.window.Canvas(),
+	)
+	dialog.Show()
+	dialog.Resize(fyne.NewSize(300, 100))
+	dialog.Move(fyne.NewPos(
+		mw.window.Canvas().Size().Width/2-150,
+		mw.window.Canvas().Size().Height/2-50,
+	))
+}
+
+func (mw *MainWindow) ShowError(message string) {
+	dialog := widget.NewPopUp(
+		widget.NewLabel("Error: "+message),
+		mw.window.Canvas(),
+	)
+	dialog.Show()
+	dialog.Resize(fyne.NewSize(300, 100))
+	dialog.Move(fyne.NewPos(
+		mw.window.Canvas().Size().Width/2-150,
+		mw.window.Canvas().Size().Height/2-50,
+	))
 }
