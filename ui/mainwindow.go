@@ -59,39 +59,41 @@ func (mw *MainWindow) ShowAndRun() {
 
 // SetContent sets the content of the main window.
 func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
-	panelTop := container.NewHBox(
-		widget.NewIcon(widgets.LoadIcon),
-		widget.NewLabel("SaaTool"),
-	)
+	fyne.Do(func() {
+		panelTop := container.NewHBox(
+			widget.NewIcon(widgets.LoadIcon),
+			widget.NewLabel("SaaTool"),
+		)
 
-	btnTranslate := widget.NewButtonWithIcon("Project", widgets.LoadIcon, mw.onProjectTapped)
-	btnSettings := widget.NewButtonWithIcon("Settings", widgets.LoadIcon, mw.onSettingsTapped)
+		btnTranslate := widget.NewButtonWithIcon("Project", widgets.LoadIcon, mw.onProjectTapped)
+		btnSettings := widget.NewButtonWithIcon("Settings", widgets.LoadIcon, mw.onSettingsTapped)
 
-	panelBottom := container.NewVBox(
-		mw.toolBar,
-		widgets.NewPanel(
+		panelBottom := container.NewVBox(
+			mw.toolBar,
+			widgets.NewPanel(
+				container.NewHBox(
+					btnTranslate,
+					btnSettings,
+				), fyne.NewSize(0, 50),
+			),
 			container.NewHBox(
-				btnTranslate,
-				btnSettings,
-			), fyne.NewSize(0, 50),
-		),
-		container.NewHBox(
-			widget.NewLabel("Status: Ready"),
-		),
-	)
+				widget.NewLabel("Status: Ready"),
+			),
+		)
 
-	mw.window.SetContent(
-		container.NewBorder(
-			panelTop,
-			panelBottom,
-			nil,
-			nil,
-			container.NewVScroll(content),
-		),
-	)
+		mw.window.SetContent(
+			container.NewBorder(
+				panelTop,
+				panelBottom,
+				nil,
+				nil,
+				container.NewVScroll(content),
+			),
+		)
 
-	content.Show()
-	content.Refresh()
+		content.Show()
+		content.Refresh()
+	})
 }
 
 func (mw *MainWindow) ClearActions() {
@@ -122,27 +124,13 @@ func (mw *MainWindow) onProjectTapped() {
 }
 
 func (mw *MainWindow) ShowMessage(message string) {
-	dialog := widget.NewPopUp(
-		widget.NewLabel(message),
-		mw.window.Canvas(),
-	)
-	dialog.Show()
-	dialog.Resize(fyne.NewSize(300, 100))
-	dialog.Move(fyne.NewPos(
-		mw.window.Canvas().Size().Width/2-150,
-		mw.window.Canvas().Size().Height/2-50,
-	))
+	fyne.Do(dialog.NewInformation("Message", message, mw.window).Show)
 }
 
 func (mw *MainWindow) ShowError(message string) {
-	dialog := widget.NewPopUp(
-		widget.NewLabel("Error: "+message),
-		mw.window.Canvas(),
-	)
-	dialog.Show()
-	dialog.Resize(fyne.NewSize(300, 100))
-	dialog.Move(fyne.NewPos(
-		mw.window.Canvas().Size().Width/2-150,
-		mw.window.Canvas().Size().Height/2-50,
-	))
+	fyne.Do(dialog.NewError(errors.New(message), mw.window).Show)
+}
+
+func (mw *MainWindow) Preferences() fyne.Preferences {
+	return mw.fyneApp.Preferences()
 }

@@ -19,8 +19,6 @@ type DeepSeekSettings struct {
 type Settings struct {
 	// DeepSeek contains the settings for the DeepSeek translation service.
 	DeepSeek DeepSeekSettings `json:"deepseek"`
-	//ActiveProjectFile is the path to the currently active project file.
-	ActiveProjectFile string `json:"active_project_file"`
 }
 
 const (
@@ -48,6 +46,7 @@ func LoadSettings() {
 }
 
 func getFilePath(fileName string) string {
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Printf("error getting home directory: %v", err)

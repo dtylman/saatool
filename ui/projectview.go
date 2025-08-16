@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 )
@@ -86,25 +86,23 @@ func (pl *ProjectView) onOpenTapped() {
 }
 
 func (pl *ProjectView) onProjectFileOpened(reader fyne.URIReadCloser, err error) {
-	defer pl.View.Refresh()
+	fyne.Do(func() {
 
-	if err != nil || reader == nil {
-		return
-	}
-	defer reader.Close()
-	projectPath := reader.URI().Path()
-	pl.project, err = translation.LoadProject(projectPath)
-	if err != nil {
-		Main.ShowError(fmt.Sprintf("Failed to load project file '%v': %v", projectPath, err))
-		return
-	}
-	pl.setProject(pl.project)
-	config.Options.ActiveProjectFile = projectPath
-	err = config.SaveSettings()
-	if err != nil {
-		Main.ShowError(fmt.Sprintf("Failed to save settings: %v", err))
-		return
-	}
+		if err != nil || reader == nil {
+			return
+		}
+		defer pl.View.Refresh()
+		defer reader.Close()
+
+		projectPath := reader.URI().Path()
+		pl.project, err = translation.LoadProjectFromReader(reader)
+		if err != nil {
+			Main.ShowError(fmt.Sprintf("Failed to load project file '%v': %v", projectPath, err))
+			return
+		}
+		pl.setProject(pl.project)
+		Main.Preferences().SetString("active_project", projectPath)
+	})
 }
 
 // SetProject updates the ProjectCard with the given project details.
@@ -119,26 +117,27 @@ func (ed *ProjectView) setProject(project *translation.Project) {
 	ed.characterList.SetCharacters(project.Characters)
 }
 
-func (ed *ProjectView) setProjectFromFile(filePath string) error {
-	project, err := translation.LoadProject(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to load project from file '%s': %w", filePath, err)
-	}
-	ed.setProject(project)
-	return nil
-}
-
 func (ed *ProjectView) setActiveProject() {
-	log.Printf("setting active project from file: '%s'", config.Options.ActiveProjectFile)
-	if config.Options.ActiveProjectFile == "" {
+	activeProject := Main.Preferences().String("active_project")
+	log.Printf("active project file: '%s'", activeProject)
+	if activeProject == "" {
 		return
 	}
-	err := ed.setProjectFromFile(config.Options.ActiveProjectFile)
+
+	reader, err := storage.Reader(storage.NewFileURI(activeProject))
 	if err != nil {
-		log.Printf("Failed to set active project: %v", err)
-		Main.ShowError(fmt.Sprintf("Failed to set active project: %v", err))
+		Main.ShowError(fmt.Sprintf("Failed to open active project file '%s': %v", activeProject, err))
 		return
 	}
+	defer reader.Close()
+	ed.project, err = translation.LoadProjectFromReader(reader)
+	if err != nil {
+		Main.ShowError(fmt.Sprintf("Failed to load active project file '%s': %v", activeProject, err))
+		return
+	}
+	ed.setProject(ed.project)
+	log.Printf("loaded active project: %s", ed.project.Name)
+
 }
 
 func (ed *ProjectView) onTranslateTapped() {

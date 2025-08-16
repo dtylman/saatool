@@ -3,6 +3,7 @@ package translation
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 )
@@ -57,6 +58,26 @@ type Project struct {
 	Target Unit `json:"target"`
 	// Prompt is the translation prompt or instructions for the translator.
 	Prompt string `json:"prompt"`
+}
+
+func LoadProjectFromReader(reader io.ReadCloser) (*Project, error) {
+	log.Printf("loading project from reader")
+	if reader == nil {
+		return nil, fmt.Errorf("reader cannot be nil")
+	}
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("error reading project data: %w", err)
+	}
+
+	var project Project
+	err = json.Unmarshal(data, &project)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling project data: %w", err)
+	}
+
+	return &project, nil
 }
 
 // LoadProject loads a project from a file based on its name.
