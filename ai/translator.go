@@ -1,4 +1,4 @@
-package translator
+package ai
 
 import (
 	"context"
@@ -6,38 +6,34 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
 
-// BookDetails represents the details of a book.
-type BookDetails struct {
-	Title          string                  `json:"title"`
-	Author         string                  `json:"author"`
-	Synopsis       string                  `json:"synopsis"`
-	Genre          string                  `json:"genre"`
-	MainCharacters []translation.Character `json:"main_characters"`
+type Translator struct {
+	client        *deepseek.Client
+	inTranslation map[string]bool
+	mutex         sync.Mutex
 }
 
-// NewBookDetails creates a new BookDetails instance from a translation.Project.
-func NewBookDetails(project *translation.Project) *BookDetails {
-	return &BookDetails{
-		Title:          project.Title,
-		Author:         project.Author,
-		Synopsis:       project.Synopsis,
-		Genre:          project.Genre,
-		MainCharacters: project.Characters,
+func NewTranslator() *Translator {
+	client := deepseek.NewClient(config.Options.DeepSeek.APIKey)
+	if client == nil {
+		log.Fatal("failed to create DeepSeek client")
+	}
+	return &Translator{client: client,
+		inTranslation: make(map[string]bool),
+		mutex:         sync.Mutex{},
 	}
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
-func GetBookDetails(ctx context.Context, book *BookDetails) (*BookDetails, error) {
-
-	client := deepseek.NewClient(config.Options.DeepSeek.APIKey)
-	if client == nil {
-		return nil, errors.New("failed to create DeepSeek client")
+func (t *Translator) GetBookDetails(ctx context.Context, book *BookDetails) (*BookDetails, error) {
+	if book == nil {
+		return nil, errors.New("book details cannot be nil")
 	}
 
 	bookRequest, err := json.Marshal(book)
@@ -46,7 +42,7 @@ func GetBookDetails(ctx context.Context, book *BookDetails) (*BookDetails, error
 	}
 
 	log.Printf("requesting book details for: %s", book.Title)
-	resp, err := client.CreateChatCompletion(ctx, &deepseek.ChatCompletionRequest{
+	resp, err := t.client.CreateChatCompletion(ctx, &deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.ChatCompletionMessage{
 			{
@@ -95,9 +91,21 @@ type TranslationContext struct {
 	Target translation.Unit `json:"target"`
 }
 
-func Translate(ctx context.Context, project translation.Project, paragraphIndex int) (string, error) {
-	client := deepseek.NewClient(config.Options.DeepSeek.APIKey)
-	if client == nil {
+func (t *Translator) SetTranslationInProgress(paragraphID string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.inTranslation[paragraphID] = true
+}
+
+func (t *Translator) IsTranslationInProgress(paragraphID string) bool {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	_, exists := t.inTranslation[paragraphID]
+	return exists
+}
+
+func (t *Translator) Translate(ctx context.Context, project translation.Project, paragraphIndex int) (string, error) {
+	if t.client == nil {
 		return "", errors.New("failed to create DeepSeek client")
 	}
 
@@ -108,6 +116,11 @@ func Translate(ctx context.Context, project translation.Project, paragraphIndex 
 	paragraphID := project.Source.Paragraphs[paragraphIndex].ID
 	log.Printf("translating paragraph %d with ID %s from %s to %s", paragraphIndex, paragraphID, project.Source.Language, project.Target.Language)
 
+	if t.IsTranslationInProgress(paragraphID) {
+		log.Printf("translation for paragraph %d is already in progress", paragraphIndex)
+		return "", fmt.Errorf("translation for paragraph %d is already in progress", paragraphIndex)
+	}
+	t.SetTranslationInProgress(paragraphID)
 	bookDetails, err := json.Marshal(NewBookDetails(&project))
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal book details: %v", err)
@@ -162,7 +175,7 @@ func Translate(ctx context.Context, project translation.Project, paragraphIndex 
 	}
 
 	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, project.Source.Language, project.Target.Language)
-	resp, err := client.CreateChatCompletion(ctx, &request)
+	resp, err := t.client.CreateChatCompletion(ctx, &request)
 	if resp == nil {
 		return "", errors.New("received nil response from DeepSeek API")
 	}

@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 	"fyne.io/x/fyne/layout"
+	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -18,9 +19,10 @@ var Main *MainWindow
 
 // MainWindow represents the main application window.
 type MainWindow struct {
-	fyneApp fyne.App
-	window  fyne.Window
-	toolBar *fyne.Container
+	fyneApp    fyne.App
+	window     fyne.Window
+	toolBar    *fyne.Container
+	translator *ai.Translator
 }
 
 // OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
@@ -30,6 +32,7 @@ func (mw *MainWindow) OpenFileDialog(callback func(reader fyne.URIReadCloser, er
 	fd.Show()
 }
 
+// NewMAinWindow creates a new instance of the main application window.
 func NewMainWindow() error {
 	if Main != nil {
 		return errors.New("main window already exists")
@@ -138,4 +141,11 @@ func (mw *MainWindow) ShowError(message string) {
 
 func (mw *MainWindow) Preferences() fyne.Preferences {
 	return mw.fyneApp.Preferences()
+}
+
+func (mw *MainWindow) Translator() *ai.Translator {
+	if mw.translator == nil {
+		mw.translator = ai.NewTranslator()
+	}
+	return mw.translator
 }

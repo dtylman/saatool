@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
+
+	"fyne.io/fyne/v2/storage"
 )
 
 // Character represents a character in a translation project.
@@ -68,6 +69,25 @@ type Project struct {
 	Prompt string `json:"prompt"`
 }
 
+func (p *Project) Save(activeProject string) error {
+	writer, err := storage.Writer(storage.NewFileURI(activeProject))
+	if err != nil {
+		return fmt.Errorf("failed to create writer: %w", err)
+	}
+	defer writer.Close()
+	data, err := json.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("failed to marshal project data: %w", err)
+	}
+	//todo: make sure we write all data
+	_, err = writer.Write(data)
+	if err != nil {
+		return fmt.Errorf("failed to write project data: %w", err)
+	}
+	log.Printf("project saved to %s", activeProject)
+	return nil
+}
+
 func LoadProjectFromReader(reader io.ReadCloser) (*Project, error) {
 	log.Printf("loading project from reader")
 	if reader == nil {
@@ -87,21 +107,6 @@ func LoadProjectFromReader(reader io.ReadCloser) (*Project, error) {
 
 	project.Normalize()
 
-	return &project, nil
-}
-
-// LoadProject loads a project from a file based on its name.
-func LoadProject(filePath string) (*Project, error) {
-	log.Printf("loading project from file: %v", filePath)
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("error reading project file %s: %w", filePath, err)
-	}
-	var project Project
-	err = json.Unmarshal(data, &project)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling project data: %w", err)
-	}
 	return &project, nil
 }
 

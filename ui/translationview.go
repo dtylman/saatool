@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	translator "github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 )
@@ -151,7 +150,7 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 
 	go func() {
 		ctx := context.Background()
-		translated, err := translator.Translate(ctx, *tv.project, paragraph)
+		translated, err := Main.Translator().Translate(ctx, *tv.project, paragraph)
 		if err != nil {
 			log.Printf("translation error: %v", err)
 		}
@@ -163,6 +162,11 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
 				log.Printf("updated target paragraph %d with translation", paragraph)
 
+				activeProject := Main.Preferences().String("active_project")
+				err = tv.project.Save(activeProject)
+				if err != nil {
+					log.Printf("failed to save project: %v", err)
+				}
 				// Update the text view if the current paragraph is being displayed
 				if tv.paragraph == paragraph {
 					tv.updateText()
