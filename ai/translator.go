@@ -6,23 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"time"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
-
-func Translate(onTranslate func(string) string) {
-	go func() {
-		time.Sleep(2 * time.Second) // Simulate a delay for translation
-		text := "Translated text"
-		if onTranslate != nil {
-			text = onTranslate(text)
-		}
-		fmt.Println(text) // Output the translated text
-	}()
-}
 
 // BookDetails represents the details of a book.
 type BookDetails struct {
@@ -33,6 +21,7 @@ type BookDetails struct {
 	MainCharacters []translation.Character `json:"main_characters"`
 }
 
+// NewBookDetails creates a new BookDetails instance from a translation.Project.
 func NewBookDetails(project *translation.Project) *BookDetails {
 	return &BookDetails{
 		Title:          project.Title,
@@ -44,16 +33,12 @@ func NewBookDetails(project *translation.Project) *BookDetails {
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
-func GetBookDetails(ctx context.Context, project *translation.Project) (*translation.Project, error) {
-	if project == nil {
-		return nil, errors.New("project cannot be nil")
-	}
+func GetBookDetails(ctx context.Context, book *BookDetails) (*BookDetails, error) {
+
 	client := deepseek.NewClient(config.Options.DeepSeek.APIKey)
 	if client == nil {
 		return nil, errors.New("failed to create DeepSeek client")
 	}
-
-	book := NewBookDetails(project)
 
 	bookRequest, err := json.Marshal(book)
 	if err != nil {
@@ -101,17 +86,7 @@ func GetBookDetails(ctx context.Context, project *translation.Project) (*transla
 		return nil, fmt.Errorf("failed to extract JSON from response: %v", err)
 	}
 
-	return &translation.Project{
-		Title:      bookResponse.Title,
-		Author:     bookResponse.Author,
-		Synopsis:   bookResponse.Synopsis,
-		Genre:      bookResponse.Genre,
-		Characters: bookResponse.MainCharacters,
-		Name:       project.Name,
-		Source:     project.Source,
-		Target:     project.Target,
-		Prompt:     project.Prompt,
-	}, nil
+	return &bookResponse, nil
 }
 
 // TranslationContext represents the context for translation operations.
@@ -120,10 +95,7 @@ type TranslationContext struct {
 	Target translation.Unit `json:"target"`
 }
 
-func Translate2(ctx context.Context, project *translation.Project, paragraphIndex int) (string, error) {
-	if project == nil {
-		return "", errors.New("project cannot be nil")
-	}
+func Translate(ctx context.Context, project translation.Project, paragraphIndex int) (string, error) {
 	client := deepseek.NewClient(config.Options.DeepSeek.APIKey)
 	if client == nil {
 		return "", errors.New("failed to create DeepSeek client")
@@ -133,7 +105,10 @@ func Translate2(ctx context.Context, project *translation.Project, paragraphInde
 		return "", fmt.Errorf("paragraph index %d out of range", paragraphIndex)
 	}
 
-	bookDetails, err := json.Marshal(NewBookDetails(project))
+	paragraphID := project.Source.Paragraphs[paragraphIndex].ID
+	log.Printf("translating paragraph %d with ID %s from %s to %s", paragraphIndex, paragraphID, project.Source.Language, project.Target.Language)
+
+	bookDetails, err := json.Marshal(NewBookDetails(&project))
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal book details: %v", err)
 	}
@@ -154,11 +129,9 @@ func Translate2(ctx context.Context, project *translation.Project, paragraphInde
 	if fromParagraphIndex < 0 {
 		fromParagraphIndex = 0
 	}
-	for i := fromParagraphIndex; i < paragraphIndex; i++ {
+	for i := fromParagraphIndex; i <= paragraphIndex; i++ {
 		translationContext.Source.Paragraphs = append(translationContext.Source.Paragraphs, project.Source.Paragraphs[i])
-		if i < len(project.Target.Paragraphs) {
-			translationContext.Target.Paragraphs = append(translationContext.Target.Paragraphs, project.Target.Paragraphs[i])
-		}
+		translationContext.Target.Paragraphs = append(translationContext.Target.Paragraphs, project.Target.Paragraphs[i])
 	}
 
 	data, err := json.Marshal(translationContext)
@@ -188,6 +161,7 @@ func Translate2(ctx context.Context, project *translation.Project, paragraphInde
 		JSONMode: true,
 	}
 
+	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, project.Source.Language, project.Target.Language)
 	resp, err := client.CreateChatCompletion(ctx, &request)
 	if resp == nil {
 		return "", errors.New("received nil response from DeepSeek API")

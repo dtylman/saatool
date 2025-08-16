@@ -1,14 +1,15 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	translator "github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 )
@@ -70,7 +71,7 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 
 	tv.paragraph = paragraph
 	if !tv.source {
-		tv.translate(tv.paragraph)
+		tv.translate(tv.paragraph, tv.project.Source.Language, tv.project.Target.Language, false)
 	}
 
 	tv.updateText()
@@ -93,17 +94,33 @@ func (tv *TranslationView) updateProgress() {
 }
 
 func (tv *TranslationView) updateText() {
-	var text string
+	var p translation.Paragraph
+	var lang string
 	if tv.source {
-		tv.txt.Direction = widgets.LeftToRight
-		log.Println("Fix me!")
-		text = tv.project.Source.Paragraphs[tv.paragraph].Text
+		lang = tv.project.Source.Language
+		p = tv.project.Source.Paragraphs[tv.paragraph]
 	} else {
-		tv.txt.Direction = widgets.RightToLeft
-		text = tv.project.Target.Paragraphs[tv.paragraph].Text
+		lang = tv.project.Target.Language
+		p = tv.project.Target.Paragraphs[tv.paragraph]
 	}
-	words := strings.Fields(strings.Replace(text, "\n", " <NL> ", -1))
-	tv.txt.SetWords(words)
+
+	if p.Text == "" {
+		tv.panelMain.RemoveAll()
+		tv.panelMain.Add(widget.NewLabel("No text available for this paragraph."))
+
+	} else {
+		tv.panelMain.RemoveAll()
+		tv.panelMain.Add(tv.txt)
+		words := strings.Fields(strings.Replace(p.Text, "\n", " <NL> ", -1))
+		dir := translation.GetTextDirection(lang)
+		tv.txt.SetWords(words)
+		if dir == translation.RightToLeft {
+			tv.txt.Direction = widgets.RightToLeft
+		} else {
+			tv.txt.Direction = widgets.LeftToRight
+		}
+	}
+
 	tv.updateProgress()
 }
 
@@ -112,21 +129,50 @@ func (tv *TranslationView) onSourceChange(checked bool) {
 	tv.updateText()
 }
 
-func (tv *TranslationView) translate(paragraph int) {
-	log.Printf("Translating paragraph %d", paragraph)
+func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLang string, force bool) {
+	log.Printf("translating paragraph %d from %v to %v (force=%v)", paragraph, sourceLang, targetLang, force)
+
+	if paragraph < 0 || paragraph >= len(tv.project.Target.Paragraphs) {
+		log.Printf("target paragraph %d out of range", paragraph)
+		return
+	}
+
+	target := tv.project.Target.Paragraphs[paragraph]
+
+	if target.Text != "" && !force {
+		log.Printf("paragraph %d already translated", paragraph)
+		return
+	}
+
+	if paragraph < 0 || paragraph >= len(tv.project.Source.Paragraphs) {
+		log.Printf("source paragraph %d out of range", paragraph)
+		return
+	}
+
 	go func() {
-		time.Sleep(time.Second)
-		fyne.Do(func() {
-			card := container.NewVBox(
-				widget.NewLabel("Translating..."),
-				widget.NewProgressBarInfinite(),
-			)
-			tv.panelMain.Objects = []fyne.CanvasObject{card}
-			tv.txt.SetWords([]string{"Translating...", "Please wait..."})
-		})
+		ctx := context.Background()
+		translated, err := translator.Translate(ctx, *tv.project, paragraph)
+		if err != nil {
+			log.Printf("translation error: %v", err)
+		}
+		log.Printf("translation result: %v", translated)
 
+		if translated != "" {
+			fyne.Do(func() {
+				tv.project.Target.Paragraphs[paragraph].Text = translated
+				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
+				log.Printf("updated target paragraph %d with translation", paragraph)
+
+				// Update the text view if the current paragraph is being displayed
+				if tv.paragraph == paragraph {
+					tv.updateText()
+				}
+			})
+		} else {
+			log.Printf("no translation received for paragraph %d", paragraph)
+		}
 	}()
-	// })
-
-	log.Printf("Translation initiated for paragraph %d", paragraph)
+	// translate the paragraph
+	// when translation is finished, update the project.
+	// if the paragraph is being displayed, refresh the display.( maybe always refresh? )
 }

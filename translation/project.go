@@ -1,6 +1,8 @@
 package translation
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +30,12 @@ type Paragraph struct {
 	ID string `json:"id"`
 	// Text is the content of the paragraph.
 	Text string `json:"text"`
+}
+
+// CalcID calculates a unique ID for the paragraph based on its text.
+func (p *Paragraph) CalcID() string {
+	sum := md5.Sum([]byte(p.Text))
+	return hex.EncodeToString(sum[:])
 }
 
 // Unit represents a collection of paragraphs in a specific language.
@@ -77,6 +85,8 @@ func LoadProjectFromReader(reader io.ReadCloser) (*Project, error) {
 		return nil, fmt.Errorf("error unmarshaling project data: %w", err)
 	}
 
+	project.Normalize()
+
 	return &project, nil
 }
 
@@ -93,4 +103,22 @@ func LoadProject(filePath string) (*Project, error) {
 		return nil, fmt.Errorf("error unmarshaling project data: %w", err)
 	}
 	return &project, nil
+}
+
+// Normalize ensures that the project has valid data.
+func (p *Project) Normalize() {
+	if len(p.Source.Paragraphs) > len(p.Target.Paragraphs) {
+		diff := len(p.Source.Paragraphs) - len(p.Target.Paragraphs)
+		log.Printf("normalizing project: adding %d paragraphs to target", diff)
+		for i := 0; i < diff; i++ {
+			p.Target.Paragraphs = append(p.Target.Paragraphs, Paragraph{})
+		}
+	}
+
+	for i := range p.Source.Paragraphs {
+		if p.Source.Paragraphs[i].ID == "" {
+			p.Source.Paragraphs[i].ID = p.Source.Paragraphs[i].CalcID()
+			p.Target.Paragraphs[i].ID = p.Source.Paragraphs[i].ID
+		}
+	}
 }
