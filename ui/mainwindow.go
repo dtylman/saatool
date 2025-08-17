@@ -2,6 +2,8 @@ package ui
 
 import (
 	"errors"
+	"io"
+	"log"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -23,6 +25,7 @@ type MainWindow struct {
 	window     fyne.Window
 	toolBar    *fyne.Container
 	translator *ai.Translator
+	logView    *LogView
 }
 
 // OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
@@ -41,7 +44,13 @@ func NewMainWindow() error {
 		fyneApp: app.New(),
 		window:  nil,
 		toolBar: container.NewHBox(),
+		logView: NewLogView(),
 	}
+
+	// bind the log view to the main window
+	teeWriter := io.MultiWriter(Main.logView, log.Writer())
+	log.SetOutput(teeWriter)
+
 	return nil
 }
 
@@ -126,8 +135,9 @@ func (mw *MainWindow) onProjectTapped() {
 }
 
 func (mw *MainWindow) onLogTapped() {
+	mw.ClearActions()
 	mw.SetContent(
-		widget.NewLabel("Log Page (to be implemented)"),
+		mw.logView.View,
 	)
 }
 
