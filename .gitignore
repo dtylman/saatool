@@ -33,6 +33,6 @@ go.work.sum
 cmd/saatool/saatool
 *.apk
 cmd/saatool/__debug*
-cmd/saatooltool/main.go
+
 cmd/saatooltool/luciper.epub
 cmd/saatooltool/saatooltool
