@@ -1,65 +1,98 @@
 package main
 
 import (
-	"fmt"
-	"html"
-	"io"
+	"context"
+	"encoding/json"
+	"flag"
 	"log"
-	"strings"
+	"os"
 
-	"github.com/microcosm-cc/bluemonday"
-	"github.com/taylorskalyo/goreader/epub"
+	"github.com/dtylman/saatool/ai"
+	"github.com/dtylman/saatool/translation"
 )
 
-func printItem(item epub.Itemref, bp *bluemonday.Policy) {
-	fmt.Printf("============[ %v %v %v] =========:\n", item.ID, item.HREF, item.MediaType)
-	reader, err := item.Open()
-	if err != nil {
-		log.Printf("Error opening item %s: %v", item.ID, err)
-		return
-	}
-	defer reader.Close()
-
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		log.Printf("Error reading item %s: %v", item.ID, err)
-		return
-	}
-
-	text := string(content)
-	text = bp.Sanitize(text)
-	text = html.UnescapeString(text)
-	text = strings.TrimSpace(text)
-	fmt.Println(text)
+type ToolTool struct {
+	ec          *EPubConverter
+	inFile      string
+	outFile     string
+	maxLines    int
+	fromLang    string
+	toLang      string
+	deepSeekKey string
+	getDetails  bool
 }
 
-func work() error {
-	file := "luciper.epub"
-
-	rc, err := epub.OpenReader(file)
+func (tt *ToolTool) Run(ctx context.Context) error {
+	log.Printf("converting epub: '%s'", tt.inFile)
+	tt.ec = NewEPubConverter()
+	err := tt.ec.ConvertEPub(tt.inFile)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	defer rc.Close()
 
-	// The rootfile (content.opf) lists all of the contents of an epub file.
-	// There may be multiple rootfiles, although typically there is only one.
-	book := rc.Rootfiles[0]
-
-	// Print book title.
-	fmt.Println("Title: ", book.Title)
-	bp := bluemonday.StrictPolicy()
-	// List the IDs of files in the book's spine.
-	for _, item := range book.Spine.Itemrefs {
-		printItem(item, bp)
-		fmt.Scanln()
+	if tt.getDetails {
+		err = tt.getBookDetails(ctx, tt.ec.Project)
+		if err != nil {
+			return err
+		}
 	}
+
+	return tt.saveProject()
+
+}
+
+func (tt *ToolTool) saveProject() error {
+	log.Printf("saving project to: %s", tt.outFile)
+	data, err := json.MarshalIndent(tt.ec.Project, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(tt.outFile, data, 0644)
+	if err != nil {
+		return err
+	}
+	log.Printf("Project saved to %s", tt.outFile)
+	return nil
+}
+
+func (tt *ToolTool) getBookDetails(ctx context.Context, project *translation.Project) error {
+	log.Printf("Getting book details for project: %s", project.Title)
+	translator := ai.NewTranslator()
+
+	bookDetails, err := translator.GetBookDetails(ctx, ai.NewBookDetails(tt.ec.Project))
+	if err != nil {
+		return err
+	}
+
+	project.Author = bookDetails.Author
+	project.Genre = bookDetails.Genre
+	project.Synopsis = bookDetails.Synopsis
+	project.Characters = bookDetails.MainCharacters
+
+	log.Printf("Book details retrieved: %s by %s", bookDetails.Title, bookDetails.Author)
+
 	return nil
 }
 
 func main() {
-	if err := work(); err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return
+	tt := &ToolTool{}
+	flag.StringVar(&tt.inFile, "in", "", "Input EPUB file")
+	flag.StringVar(&tt.outFile, "out", "project.json", "Output project file")
+	flag.IntVar(&tt.maxLines, "maxlines", 5, "Maximum lines per paragraph")
+	flag.StringVar(&tt.fromLang, "from", "english", "Source language")
+	flag.StringVar(&tt.toLang, "to", "hebrew", "Target language")
+	flag.StringVar(&tt.deepSeekKey, "key", "", "DeepSeek API key")
+	flag.BoolVar(&tt.getDetails, "details", false, "Get book details")
+	flag.Parse()
+
+	if tt.inFile == "" {
+		log.Fatal("Input file is required")
 	}
+
+	err := tt.Run(context.Background())
+	if err != nil {
+		log.Fatalf("Error running ToolTool: %v", err)
+	}
+	log.Println("ToolTool completed successfully")
 }

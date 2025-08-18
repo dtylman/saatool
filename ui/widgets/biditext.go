@@ -182,7 +182,7 @@ func (b *BidiText) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func reversePunctuation(s string) string {
-	punctuations := []string{".", ",", "!", "?"}
+	punctuations := []string{".", ",", "!", "?", ":"}
 	for _, p := range punctuations {
 		if strings.HasSuffix(s, p) {
 			log.Printf("Reversing punctuation in: %s", s)

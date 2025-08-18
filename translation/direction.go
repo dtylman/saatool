@@ -4,6 +4,8 @@ import (
 	"log"
 
 	iso6391 "github.com/emvi/iso-639-1"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Direction represents the text direction for rendering.
@@ -18,6 +20,8 @@ const (
 
 // GetTextDirection returns the text direction for the given language code.
 func GetTextDirection(lang string) Direction {
+	lang = cases.Title(language.English).String(lang)
+	log.Printf("Getting text direction for language: %v", lang)
 	code := iso6391.CodeForName(lang)
 	if code == "" {
 		code = iso6391.CodeForNativeName(lang)

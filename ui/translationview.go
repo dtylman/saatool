@@ -71,6 +71,12 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 	tv.paragraph = paragraph
 	if !tv.source {
 		tv.translate(tv.paragraph, tv.project.Source.Language, tv.project.Target.Language, false)
+		translateAhead := 3
+		for i := 1; i <= translateAhead; i++ {
+			if tv.paragraph+i < len(tv.project.Target.Paragraphs) {
+				tv.translate(tv.paragraph+i, tv.project.Source.Language, tv.project.Target.Language, false)
+			}
+		}
 	}
 
 	tv.updateText()

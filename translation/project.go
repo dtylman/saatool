@@ -69,6 +69,13 @@ type Project struct {
 	Prompt string `json:"prompt"`
 }
 
+// NewProject creates a new translation project with empty source and target units.
+func NewProject() *Project {
+	return &Project{
+		Characters: make([]Character, 0),
+	}
+}
+
 func (p *Project) Save(activeProject string) error {
 	writer, err := storage.Writer(storage.NewFileURI(activeProject))
 	if err != nil {
