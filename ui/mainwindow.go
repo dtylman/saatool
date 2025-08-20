@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"log"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -55,7 +54,7 @@ func NewMainWindow() error {
 	// bind the log view to the main window
 	// teeWriter := io.MultiWriter(Main.logView, log.Writer())
 	//log.SetOutput(teeWriter)
-	log.SetOutput(Main.logView)
+	//log.SetOutput(Main.logView)
 	// Main.logView.OnLog = Main.onLogMessage
 
 	return nil

@@ -252,6 +252,7 @@ func (r *bidiTextRenderer) layoutRTL() {
 		if r.parent.isNewLine(text.Text) { // If the text is a newline, just move down without resizing
 			y += lineHeight
 			x = maxX
+			r.texts[i].Hide()
 			continue
 		}
 
@@ -296,6 +297,7 @@ func (r *bidiTextRenderer) layoutLTR() {
 		if r.parent.isNewLine(text.Text) { // If the text is a newline, just move down without resizing
 			y += lineHeight
 			x = minX
+			r.texts[i].Hide()
 			continue
 		}
 
