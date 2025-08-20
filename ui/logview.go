@@ -13,6 +13,7 @@ type LogView struct {
 	lstLog   *widget.List
 	mutex    sync.Mutex
 	messages []string
+	OnLog    func(string)
 }
 
 func NewLogView() *LogView {
@@ -27,12 +28,12 @@ func NewLogView() *LogView {
 
 func (lv *LogView) Write(p []byte) (n int, err error) {
 	lv.addMessage(string(p))
-	fyne.Do(func() {
-		if (lv == nil) || (lv.lstLog == nil) {
-			return
-		}
-		lv.lstLog.Refresh()
-	})
+	// fyne.Do(func() {
+	// 	if lv.lstLog == nil {
+	// 		return
+	// 	}
+	// 	lv.lstLog.Refresh()
+	// })
 	return len(p), nil
 }
 

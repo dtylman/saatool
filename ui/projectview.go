@@ -101,7 +101,7 @@ func (pl *ProjectView) onProjectFileOpened(reader fyne.URIReadCloser, err error)
 			return
 		}
 		pl.setProject(pl.project)
-		Main.Preferences().SetString("active_project", projectPath)
+		Main.Preferences().SetActiveProject(projectPath)
 	})
 }
 
@@ -118,7 +118,7 @@ func (ed *ProjectView) setProject(project *translation.Project) {
 }
 
 func (ed *ProjectView) setActiveProject() {
-	activeProject := Main.Preferences().String("active_project")
+	activeProject := Main.Preferences().ActiveProject()
 	log.Printf("active project file: '%s'", activeProject)
 	if activeProject == "" {
 		return

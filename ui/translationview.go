@@ -13,6 +13,11 @@ import (
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
+var (
+	lastParagraph = 0  // last paragraph index
+	lastSource    bool // last source view
+)
+
 type TranslationView struct {
 	View        fyne.CanvasObject
 	project     *translation.Project
@@ -28,8 +33,8 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 		project:     project,
 		txt:         widgets.NewBidiText(),
 		lblProgress: widget.NewLabel(""),
-		source:      false, // default to target language
-		paragraph:   0,     // start with the first paragraph
+		source:      lastSource,
+		paragraph:   lastParagraph,
 	}
 
 	Main.ClearActions()
@@ -40,9 +45,9 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	Main.AddActionWidget(widget.NewSeparator())
 
 	tv.txt.Direction = widgets.RightToLeft
-	tv.txt.TextSize = 40
-	tv.txt.Padding = 10
-	tv.txt.Spacing = 15
+	tv.txt.TextSize = Main.Preferences().TranslationTextSize()
+	tv.txt.Padding = Main.Preferences().TranslationTextPadding()
+	tv.txt.Spacing = Main.Preferences().TranslationTextSpacing()
 
 	tv.panelMain = container.NewStack(tv.txt)
 	tv.View = tv.panelMain
@@ -96,6 +101,8 @@ func (tv *TranslationView) onPrevious() {
 
 func (tv *TranslationView) updateProgress() {
 	tv.lblProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraph, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
+	lastParagraph = tv.paragraph
+	lastSource = tv.source
 }
 
 func (tv *TranslationView) updateText() {
@@ -168,7 +175,7 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
 				log.Printf("updated target paragraph %d with translation", paragraph)
 
-				activeProject := Main.Preferences().String("active_project")
+				activeProject := Main.Preferences().ActiveProject()
 				err = tv.project.Save(activeProject)
 				if err != nil {
 					log.Printf("failed to save project: %v", err)

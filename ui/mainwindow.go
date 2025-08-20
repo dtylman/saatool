@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"io"
 	"log"
 
 	"fyne.io/fyne/v2"
@@ -26,6 +25,7 @@ type MainWindow struct {
 	toolBar    *fyne.Container
 	translator *ai.Translator
 	logView    *LogView
+	txtStatus  *widget.Label
 }
 
 // OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
@@ -40,16 +40,23 @@ func NewMainWindow() error {
 	if Main != nil {
 		return errors.New("main window already exists")
 	}
+
 	Main = &MainWindow{
-		fyneApp: app.New(),
-		window:  nil,
-		toolBar: container.NewHBox(),
-		logView: NewLogView(),
+		fyneApp:   app.New(),
+		window:    nil,
+		toolBar:   container.NewHBox(),
+		logView:   NewLogView(),
+		txtStatus: widget.NewLabel("Status: Ready"),
 	}
 
+	Main.txtStatus.Truncation = fyne.TextTruncateClip
+	Main.txtStatus.Wrapping = fyne.TextWrapOff
+
 	// bind the log view to the main window
-	teeWriter := io.MultiWriter(Main.logView, log.Writer())
-	log.SetOutput(teeWriter)
+	// teeWriter := io.MultiWriter(Main.logView, log.Writer())
+	//log.SetOutput(teeWriter)
+	log.SetOutput(Main.logView)
+	// Main.logView.OnLog = Main.onLogMessage
 
 	return nil
 }
@@ -88,7 +95,7 @@ func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 			),
 
 			container.NewHBox(
-				widget.NewLabel("Status: Ready"),
+				mw.txtStatus,
 			),
 		)
 
@@ -149,8 +156,8 @@ func (mw *MainWindow) ShowError(message string) {
 	fyne.Do(dialog.NewError(errors.New(message), mw.window).Show)
 }
 
-func (mw *MainWindow) Preferences() fyne.Preferences {
-	return mw.fyneApp.Preferences()
+func (mw *MainWindow) Preferences() *PreferencesDecorator {
+	return NewPreferencesDecorator(mw.fyneApp.Preferences())
 }
 
 func (mw *MainWindow) Translator() *ai.Translator {
@@ -158,4 +165,10 @@ func (mw *MainWindow) Translator() *ai.Translator {
 		mw.translator = ai.NewTranslator()
 	}
 	return mw.translator
+}
+
+func (mw *MainWindow) onLogMessage(msg string) {
+	fyne.Do(func() {
+		mw.txtStatus.SetText(msg)
+	})
 }
