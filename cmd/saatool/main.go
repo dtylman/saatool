@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-
+	ui.MemoryLog.Init() // Initialize the memory log buffer
 	log.Printf("Starting SaaTool application...")
 	err := ui.NewMainWindow()
 	if err != nil {

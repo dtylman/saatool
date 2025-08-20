@@ -37,3 +37,11 @@ var IconNext = fyne.NewStaticResource("next.svg", iconNext)
 //go:embed prev.svg
 var iconPrev []byte
 var IconPrev = fyne.NewStaticResource("prev.svg", iconPrev)
+
+//go:embed reload.svg
+var iconReload []byte
+var IconReload = fyne.NewStaticResource("reload.svg", iconReload)
+
+//go:embed save.svg
+var iconSave []byte
+var IconSave = fyne.NewStaticResource("save.svg", iconSave)

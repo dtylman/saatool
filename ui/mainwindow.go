@@ -23,7 +23,6 @@ type MainWindow struct {
 	window     fyne.Window
 	toolBar    *fyne.Container
 	translator *ai.Translator
-	logView    *LogView
 	txtStatus  *widget.Label
 }
 
@@ -44,18 +43,11 @@ func NewMainWindow() error {
 		fyneApp:   app.New(),
 		window:    nil,
 		toolBar:   container.NewHBox(),
-		logView:   NewLogView(),
 		txtStatus: widget.NewLabel("Status: Ready"),
 	}
 
 	Main.txtStatus.Truncation = fyne.TextTruncateClip
 	Main.txtStatus.Wrapping = fyne.TextWrapOff
-
-	// bind the log view to the main window
-	// teeWriter := io.MultiWriter(Main.logView, log.Writer())
-	//log.SetOutput(teeWriter)
-	//log.SetOutput(Main.logView)
-	// Main.logView.OnLog = Main.onLogMessage
 
 	return nil
 }
@@ -130,7 +122,7 @@ func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func())
 
 func (mw *MainWindow) onSettingsTapped() {
 	mw.SetContent(
-		widget.NewLabel("Settings Page (to be implemented)"),
+		NewSettingsView(Main.Preferences()).View,
 	)
 }
 
@@ -143,7 +135,7 @@ func (mw *MainWindow) onProjectTapped() {
 func (mw *MainWindow) onLogTapped() {
 	mw.ClearActions()
 	mw.SetContent(
-		mw.logView.View,
+		NewLogView().View,
 	)
 }
 
@@ -161,13 +153,7 @@ func (mw *MainWindow) Preferences() *PreferencesDecorator {
 
 func (mw *MainWindow) Translator() *ai.Translator {
 	if mw.translator == nil {
-		mw.translator = ai.NewTranslator()
+		mw.translator = ai.NewTranslator(mw.Preferences().DeepSeekAPIKey())
 	}
 	return mw.translator
-}
-
-func (mw *MainWindow) onLogMessage(msg string) {
-	fyne.Do(func() {
-		mw.txtStatus.SetText(msg)
-	})
 }

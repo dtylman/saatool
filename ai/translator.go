@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
-	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
 
@@ -19,8 +18,9 @@ type Translator struct {
 	mutex         sync.Mutex
 }
 
-func NewTranslator() *Translator {
-	client := deepseek.NewClient(config.Options.DeepSeek.APIKey)
+// NewTranslator creates a new translator with deep seek api key
+func NewTranslator(apiKey string) *Translator {
+	client := deepseek.NewClient(apiKey)
 	if client == nil {
 		log.Fatal("failed to create DeepSeek client")
 	}
