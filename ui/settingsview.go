@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"log"
+	"strconv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
@@ -26,14 +28,14 @@ func NewSettingsView(preferences *PreferencesDecorator) *SettingsView {
 
 	sv.View = widget.NewForm(
 		widget.NewFormItem("DeepSeek API Key", sv.entryDeepSeekAPIKey),
-		widget.NewFormItem("Translation Text Size", sv.entryTextSize),
+		widget.NewFormItem("App Sizes Factor", sv.entryTextSize),
 	)
 
 	Main.ClearActions()
 	Main.AddAction("Save", widgets.IconSave, sv.onSaveTapped)
 
 	sv.entryDeepSeekAPIKey.SetText(preferences.DeepSeekAPIKey())
-	sv.entryTextSize.SetText(fmt.Sprintf("%.2f", preferences.TranslationTextSize()))
+	sv.entryTextSize.SetText(fmt.Sprintf("%v", preferences.AppSize()))
 
 	return sv
 
@@ -41,4 +43,12 @@ func NewSettingsView(preferences *PreferencesDecorator) *SettingsView {
 
 func (sv *SettingsView) onSaveTapped() {
 	sv.preferences.SetDeepSeekAPIKey(sv.entryDeepSeekAPIKey.Text)
+	newSize, err := strconv.Atoi(sv.entryTextSize.Text)
+	if err != nil {
+		log.Printf("invalid app size: %v", err)
+		sv.entryTextSize.SetText(fmt.Sprintf("%v", sv.preferences.AppSize()))
+	} else {
+		sv.preferences.SetAppSize(newSize)
+	}
+
 }

@@ -16,11 +16,7 @@ import (
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
-var (
-	lastParagraph = 0  // last paragraph index
-	lastSource    bool // last source view
-)
-
+// TranslationView represents the view for translating text in a project.
 type TranslationView struct {
 	View        fyne.CanvasObject
 	project     *translation.Project
@@ -32,12 +28,14 @@ type TranslationView struct {
 }
 
 func NewTranslationView(project *translation.Project) *TranslationView {
-	tv := &TranslationView{
-		project: project,
-		txt:     widgets.NewBidiText(),
+	prefs := Main.Preferences()
 
-		source:    lastSource,
-		paragraph: lastParagraph,
+	tv := &TranslationView{
+		project:     project,
+		txt:         widgets.NewBidiText(),
+		btnProgress: widget.NewButton("", nil),
+		source:      prefs.LastTranslationSource(),
+		paragraph:   prefs.LastTranslationParagraph(),
 	}
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
@@ -48,13 +46,16 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	Main.AddActionWidget(tv.btnProgress)
 	Main.AddActionWidget(widget.NewSeparator())
 
-	tv.txt.Direction = widgets.LeftToRight
-	tv.txt.TextSize = Main.Preferences().TranslationTextSize()
-	tv.txt.Padding = Main.Preferences().TranslationTextPadding()
-	tv.txt.Spacing = Main.Preferences().TranslationTextSpacing()
+	tv.txt.Direction = widgets.RightToLeft
+	appSize := Main.Preferences().AppSize()
+	tv.txt.TextSize = float32(appSize) * 2
+	tv.txt.Padding = float32(appSize) / 2
+	tv.txt.Spacing = float32(appSize) / 2
 
 	tv.panelMain = container.NewStack(tv.txt)
-	tv.View = tv.panelMain
+	view := widgets.NewPanel(tv.panelMain, fyne.NewSize(0, 0))
+	view.OnTapped = tv.onMainPanelTapped
+	tv.View = view
 
 	tv.updateProgress()
 	tv.updateText()
@@ -62,6 +63,19 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	return tv
 }
 
+// onMainPanelTapped handles tap events on the main panel of the translation view.
+func (tv *TranslationView) onMainPanelTapped(pe *fyne.PointEvent) {
+	leftSide := pe.Position.X < tv.txt.Size().Width/2
+	ltr := tv.txt.Direction == widgets.LeftToRight
+
+	if (leftSide && ltr) || (!leftSide && !ltr) {
+		tv.onPrevious()
+	} else {
+		tv.onNext()
+	}
+}
+
+// onNext handles the action of moving to the next word or paragraph.
 func (tv *TranslationView) onNext() {
 	// Move to the next word
 	if tv.txt.Next() {
@@ -72,6 +86,7 @@ func (tv *TranslationView) onNext() {
 	tv.SetParagraph(tv.paragraph + 1)
 }
 
+// SetParagraph sets the current paragraph to display in the translation view.
 func (tv *TranslationView) SetParagraph(paragraph int) {
 	if (tv.paragraph == paragraph) || (paragraph < 0) || (paragraph >= len(tv.project.Target.Paragraphs)) {
 		return
@@ -134,12 +149,15 @@ func (tv *TranslationView) onPrevious() {
 	tv.SetParagraph(tv.paragraph - 1)
 }
 
+// updateProgress updates the progress label with the current paragraph and word offset.
 func (tv *TranslationView) updateProgress() {
 	tv.btnProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraph, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
-	lastParagraph = tv.paragraph
-	lastSource = tv.source
+	prefs := Main.Preferences()
+	prefs.SetLastTranslationParagraph(tv.paragraph)
+	prefs.SetLastTranslationSource(tv.source)
 }
 
+// updateText updates the text displayed in the translation view based on the current paragraph and language.
 func (tv *TranslationView) updateText() {
 	var p translation.Paragraph
 	var lang string
@@ -183,11 +201,13 @@ func (tv *TranslationView) updateText() {
 	tv.updateProgress()
 }
 
+// onSourceChange handles the change of the source language toggle.
 func (tv *TranslationView) onSourceChange(checked bool) {
 	tv.source = checked
 	tv.updateText()
 }
 
+// translate translates the specified paragraph from source to target language.
 func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLang string, force bool) {
 	log.Printf("translating paragraph %d from %v to %v (force=%v)", paragraph, sourceLang, targetLang, force)
 

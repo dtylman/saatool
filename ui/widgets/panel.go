@@ -10,6 +10,8 @@ type Panel struct {
 	widget.BaseWidget
 	child   fyne.CanvasObject
 	minSize fyne.Size
+
+	OnTapped func(pe *fyne.PointEvent) // Optional tap handler
 }
 
 // NewPanel creates a new Panel with the specified child widget and minimum size.
@@ -27,6 +29,13 @@ func (p *Panel) CreateRenderer() fyne.WidgetRenderer {
 	return &panelRenderer{
 		panel:   p,
 		objects: []fyne.CanvasObject{p.child},
+	}
+}
+
+// Tapped is called when the panel is tapped. It can be used to handle tap events.
+func (p *Panel) Tapped(pe *fyne.PointEvent) {
+	if p.OnTapped != nil {
+		p.OnTapped(pe)
 	}
 }
 
