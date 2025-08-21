@@ -23,7 +23,6 @@ type MainWindow struct {
 	window     fyne.Window
 	toolBar    *fyne.Container
 	translator *ai.Translator
-	txtStatus  *widget.Label
 }
 
 // OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
@@ -40,14 +39,10 @@ func NewMainWindow() error {
 	}
 
 	Main = &MainWindow{
-		fyneApp:   app.New(),
-		window:    nil,
-		toolBar:   container.NewHBox(),
-		txtStatus: widget.NewLabel("Status: Ready"),
+		fyneApp: app.New(),
+		window:  nil,
+		toolBar: container.NewHBox(),
 	}
-
-	Main.txtStatus.Truncation = fyne.TextTruncateClip
-	Main.txtStatus.Wrapping = fyne.TextWrapOff
 
 	return nil
 }
@@ -56,7 +51,8 @@ func NewMainWindow() error {
 func (mw *MainWindow) ShowAndRun() {
 
 	mw.fyneApp = app.New()
-	mw.fyneApp.Settings().SetTheme(&widgets.Theme{})
+
+	mw.fyneApp.Settings().SetTheme(widgets.NewTheme(Main.Preferences().AppSize()))
 
 	mw.window = mw.fyneApp.NewWindow("SaaTool")
 
@@ -83,10 +79,6 @@ func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 				layout.Responsive(widget.NewButtonWithIcon("Project", widgets.IconProject, mw.onProjectTapped), 0.33),
 				layout.Responsive(widget.NewButtonWithIcon("Settings", widgets.IconSettings, mw.onSettingsTapped), 0.33),
 				layout.Responsive(widget.NewButtonWithIcon("Log", widgets.IconLog, mw.onLogTapped), 0.33),
-			),
-
-			container.NewHBox(
-				mw.txtStatus,
 			),
 		)
 

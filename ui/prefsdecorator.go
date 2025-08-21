@@ -6,6 +6,14 @@ type PreferencesDecorator struct {
 	prefs fyne.Preferences
 }
 
+func (pd *PreferencesDecorator) AppSize() int {
+	return pd.prefs.IntWithFallback("app_size", 16)
+}
+
+func (pd *PreferencesDecorator) SetAppSize(size int) {
+	pd.prefs.SetInt("app_size", size)
+}
+
 func NewPreferencesDecorator(prefs fyne.Preferences) *PreferencesDecorator {
 	return &PreferencesDecorator{prefs: prefs}
 }
@@ -28,19 +36,4 @@ func (pd *PreferencesDecorator) SetActiveProject(projectPath string) {
 // ActiveProject retrieves the active project path from preferences.
 func (pd *PreferencesDecorator) ActiveProject() string {
 	return pd.prefs.StringWithFallback("active_project", "")
-}
-
-// TranslationTextSize retrieves the translation text size from preferences.
-func (pd *PreferencesDecorator) TranslationTextSize() float32 {
-	return float32(pd.prefs.FloatWithFallback("translation_text_size", 20))
-}
-
-// TranslationTextPadding retrieves the translation text padding from preferences.
-func (pd *PreferencesDecorator) TranslationTextPadding() float32 {
-	return float32(pd.prefs.FloatWithFallback("translation_text_padding", 5))
-}
-
-// TranslationTextSpacing retrieves the translation text spacing from preferences.
-func (pd *PreferencesDecorator) TranslationTextSpacing() float32 {
-	return float32(pd.prefs.FloatWithFallback("translation_text_spacing", 5))
 }

@@ -45,9 +45,10 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	Main.AddActionWidget(widget.NewSeparator())
 
 	tv.txt.Direction = widgets.RightToLeft
-	tv.txt.TextSize = Main.Preferences().TranslationTextSize()
-	tv.txt.Padding = Main.Preferences().TranslationTextPadding()
-	tv.txt.Spacing = Main.Preferences().TranslationTextSpacing()
+	appSize := Main.Preferences().AppSize()
+	tv.txt.TextSize = float32(appSize) * 2
+	tv.txt.Padding = float32(appSize) / 2
+	tv.txt.Spacing = float32(appSize) / 2
 
 	tv.panelMain = container.NewStack(tv.txt)
 	tv.View = tv.panelMain
