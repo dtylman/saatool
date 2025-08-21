@@ -6,6 +6,24 @@ type PreferencesDecorator struct {
 	prefs fyne.Preferences
 }
 
+// LastSource retrieves the last source language preference.
+func (pd *PreferencesDecorator) LastTranslationSource() bool {
+	return pd.prefs.BoolWithFallback("last_translation_displayed_source", false)
+}
+func (pd *PreferencesDecorator) SetLastTranslationSource(source bool) {
+	pd.prefs.SetBool("last_translation_displayed_source", source)
+}
+
+// LastParagraph retrieves the last displayed paragraph index.
+func (pd *PreferencesDecorator) LastTranslationParagraph() int {
+	return pd.prefs.IntWithFallback("last_translation_displayed_paragraph", 0)
+}
+
+// SetLastParagraph sets the last displayed paragraph index.
+func (pd *PreferencesDecorator) SetLastTranslationParagraph(paragraph int) {
+	pd.prefs.SetInt("last_translation_displayed_paragraph", paragraph)
+}
+
 func (pd *PreferencesDecorator) AppSize() int {
 	return pd.prefs.IntWithFallback("app_size", 16)
 }

@@ -51,7 +51,7 @@ func (t *Theme) Size(name fyne.ThemeSizeName) float32 {
 	case fyne.ThemeSizeName("padding"):
 		return float32(t.baseSize / 2)
 	case fyne.ThemeSizeName("scrollBar"):
-		return float32(t.baseSize * 2)
+		return float32(t.baseSize)
 	case fyne.ThemeSizeName("scrollBarSmall"):
 		return float32(t.baseSize)
 	case fyne.ThemeSizeName("scrollBarRadius"):
