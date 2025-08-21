@@ -6,6 +6,10 @@ type PreferencesDecorator struct {
 	prefs fyne.Preferences
 }
 
+func (pd *PreferencesDecorator) TranslateAhead() int {
+	return pd.prefs.IntWithFallback("translate_ahead", 3)
+}
+
 func NewPreferencesDecorator(prefs fyne.Preferences) *PreferencesDecorator {
 	return &PreferencesDecorator{prefs: prefs}
 }

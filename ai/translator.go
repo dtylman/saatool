@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	"github.com/dtylman/saatool/translation"
@@ -14,20 +15,20 @@ import (
 
 type Translator struct {
 	client        *deepseek.Client
-	inTranslation map[string]bool
+	inTranslation map[string]time.Time
 	mutex         sync.Mutex
 }
 
 // NewTranslator creates a new translator with deep seek api key
-func NewTranslator(apiKey string) *Translator {
+func NewTranslator(apiKey string) (*Translator, error) {
 	client := deepseek.NewClient(apiKey)
 	if client == nil {
-		log.Fatal("failed to create DeepSeek client")
+		return nil, fmt.Errorf("failed to create DeepSeek client")
 	}
 	return &Translator{client: client,
-		inTranslation: make(map[string]bool),
+		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
-	}
+	}, nil
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
@@ -91,12 +92,14 @@ type TranslationContext struct {
 	Target translation.Unit `json:"target"`
 }
 
+// SetTranslationInProgress sets the translation in progress for a given paragraph ID.
 func (t *Translator) SetTranslationInProgress(paragraphID string) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	t.inTranslation[paragraphID] = true
+	t.inTranslation[paragraphID] = time.Now()
 }
 
+// IsTranslationInProgress checks if a translation is currently in progress for a given paragraph ID.
 func (t *Translator) IsTranslationInProgress(paragraphID string) bool {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -104,6 +107,7 @@ func (t *Translator) IsTranslationInProgress(paragraphID string) bool {
 	return exists
 }
 
+// Translate translates a paragraph from the source language to the target language using the DeepSeek API.
 func (t *Translator) Translate(ctx context.Context, project translation.Project, paragraphIndex int) (string, error) {
 	if t.client == nil {
 		return "", errors.New("failed to create DeepSeek client")
@@ -199,4 +203,15 @@ func (t *Translator) Translate(ctx context.Context, project translation.Project,
 
 	log.Printf("response: %+v", translationResponse)
 	return translationResponse.Target.Paragraphs[paragraphIndex-fromParagraphIndex].Text, nil
+}
+
+// TranslationDuration returns the duration of the translation for a given paragraph ID.
+func (t *Translator) TranslationDuration(paragraphID string) time.Duration {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	startTime, exists := t.inTranslation[paragraphID]
+	if !exists {
+		return 0
+	}
+	return time.Since(startTime)
 }

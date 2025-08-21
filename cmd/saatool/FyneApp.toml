@@ -2,7 +2,7 @@
   Name = "saatool"
   ID = "saatool"
   Version = "0.0.0"
-  Build = 45
+  Build = 51
 
 [Migrations]
   fyneDo = true

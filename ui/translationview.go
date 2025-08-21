@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
@@ -23,28 +26,29 @@ type TranslationView struct {
 	project     *translation.Project
 	txt         *widgets.BidiText
 	panelMain   *fyne.Container
-	lblProgress *widget.Label
+	btnProgress *widget.Button
 	source      bool // true for source language, false for target language
 	paragraph   int  // current paragraph index
 }
 
 func NewTranslationView(project *translation.Project) *TranslationView {
 	tv := &TranslationView{
-		project:     project,
-		txt:         widgets.NewBidiText(),
-		lblProgress: widget.NewLabel(""),
-		source:      lastSource,
-		paragraph:   lastParagraph,
+		project: project,
+		txt:     widgets.NewBidiText(),
+
+		source:    lastSource,
+		paragraph: lastParagraph,
 	}
 
+	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.ClearActions()
 	Main.AddActionWidget(widget.NewCheck("Source", tv.onSourceChange))
 	Main.AddAction("Next", widgets.IconNext, tv.onNext)
 	Main.AddAction("Previous", widgets.IconPrev, tv.onPrevious)
-	Main.AddActionWidget(tv.lblProgress)
+	Main.AddActionWidget(tv.btnProgress)
 	Main.AddActionWidget(widget.NewSeparator())
 
-	tv.txt.Direction = widgets.RightToLeft
+	tv.txt.Direction = widgets.LeftToRight
 	tv.txt.TextSize = Main.Preferences().TranslationTextSize()
 	tv.txt.Padding = Main.Preferences().TranslationTextPadding()
 	tv.txt.Spacing = Main.Preferences().TranslationTextSpacing()
@@ -76,7 +80,7 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 	tv.paragraph = paragraph
 	if !tv.source {
 		tv.translate(tv.paragraph, tv.project.Source.Language, tv.project.Target.Language, false)
-		translateAhead := 3
+		translateAhead := Main.Preferences().TranslateAhead()
 		for i := 1; i <= translateAhead; i++ {
 			if tv.paragraph+i < len(tv.project.Target.Paragraphs) {
 				tv.translate(tv.paragraph+i, tv.project.Source.Language, tv.project.Target.Language, false)
@@ -86,6 +90,37 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 
 	tv.updateText()
 	tv.updateProgress()
+}
+
+func (tv *TranslationView) onProgressTapped() {
+	selected := binding.NewString()
+	selected.Set(fmt.Sprintf("%d", tv.paragraph))
+	dialog.NewForm("Go to Paragraph", "Go", "Cancel",
+		[]*widget.FormItem{
+			widget.NewFormItem("Go to:", widget.NewEntryWithData(selected)),
+		},
+		func(ok bool) {
+			if ok {
+				data, err := selected.Get()
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("invalid paragraph number"), Main.window)
+					return
+				}
+				selectedParagraph, err := strconv.Atoi(data)
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("invalid paragraph number: %v", err), Main.window)
+					return
+				}
+				// Validate the paragraph number
+				if selectedParagraph < 0 || selectedParagraph >= len(tv.project.Target.Paragraphs) {
+					dialog.ShowError(fmt.Errorf("paragraph number out of range"), Main.window)
+					return
+				}
+				tv.SetParagraph(selectedParagraph)
+			}
+		},
+		Main.window,
+	).Show()
 }
 
 func (tv *TranslationView) onPrevious() {
@@ -100,7 +135,7 @@ func (tv *TranslationView) onPrevious() {
 }
 
 func (tv *TranslationView) updateProgress() {
-	tv.lblProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraph, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
+	tv.btnProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraph, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
 	lastParagraph = tv.paragraph
 	lastSource = tv.source
 }
@@ -118,7 +153,19 @@ func (tv *TranslationView) updateText() {
 
 	if p.Text == "" {
 		tv.panelMain.RemoveAll()
-		tv.panelMain.Add(widget.NewLabel("No text available for this paragraph."))
+		text := "No text available for this paragraph."
+		translator, err := Main.Translator()
+		if err == nil && translator != nil {
+			duration := translator.TranslationDuration(p.ID)
+			if duration > 0 {
+				text = fmt.Sprintf("Translation in progress for paragraph %v (%v elapsed)", tv.paragraph, duration)
+			}
+		}
+
+		label := widget.NewLabel(text)
+		label.Alignment = fyne.TextAlignCenter
+		label.Wrapping = fyne.TextWrapBreak
+		tv.panelMain.Add(container.NewCenter(label))
 
 	} else {
 		tv.panelMain.RemoveAll()
@@ -163,7 +210,12 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 
 	go func() {
 		ctx := context.Background()
-		translated, err := Main.Translator().Translate(ctx, *tv.project, paragraph)
+		translator, err := Main.Translator()
+		if err != nil {
+			log.Printf("failed to get translator: %v", err)
+			return
+		}
+		translated, err := translator.Translate(ctx, *tv.project, paragraph)
 		if err != nil {
 			log.Printf("translation error: %v", err)
 		}
@@ -189,7 +241,4 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 			log.Printf("no translation received for paragraph %d", paragraph)
 		}
 	}()
-	// translate the paragraph
-	// when translation is finished, update the project.
-	// if the paragraph is being displayed, refresh the display.( maybe always refresh? )
 }

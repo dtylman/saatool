@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -151,9 +152,14 @@ func (mw *MainWindow) Preferences() *PreferencesDecorator {
 	return NewPreferencesDecorator(mw.fyneApp.Preferences())
 }
 
-func (mw *MainWindow) Translator() *ai.Translator {
+func (mw *MainWindow) Translator() (*ai.Translator, error) {
+
 	if mw.translator == nil {
-		mw.translator = ai.NewTranslator(mw.Preferences().DeepSeekAPIKey())
+		var err error
+		mw.translator, err = ai.NewTranslator(mw.Preferences().DeepSeekAPIKey())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create translator: %v", err)
+		}
 	}
-	return mw.translator
+	return mw.translator, nil
 }
