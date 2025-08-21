@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/storage"
 )
 
@@ -76,8 +77,20 @@ func NewProject() *Project {
 	}
 }
 
-func (p *Project) Save(activeProject string) error {
-	writer, err := storage.Writer(storage.NewFileURI(activeProject))
+// SaveTo saves the project to the specified URI.
+func (p *Project) SaveTo(uriString string) error {
+	log.Printf("saving project to: %s", uriString)
+	uri, err := storage.ParseURI(uriString)
+	if err != nil {
+		return fmt.Errorf("failed to parse URI '%s': %w", uriString, err)
+	}
+	return p.Save(uri)
+}
+
+// Save saves the project to the specified URI.
+func (p *Project) Save(uri fyne.URI) error {
+	log.Printf("saving project to: %s", uri.String())
+	writer, err := storage.Writer(uri)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %w", err)
 	}
@@ -91,7 +104,7 @@ func (p *Project) Save(activeProject string) error {
 	if err != nil {
 		return fmt.Errorf("failed to write project data: %w", err)
 	}
-	log.Printf("project saved to %s", activeProject)
+	log.Printf("project saved to %s", uri.String())
 	return nil
 }
 

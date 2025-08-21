@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -14,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
+	"github.com/dustin/go-humanize"
 )
 
 // TranslationView represents the view for translating text in a project.
@@ -56,7 +58,6 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	view := widgets.NewPanel(tv.panelMain, fyne.NewSize(0, 0))
 	view.OnTapped = tv.onMainPanelTapped
 	tv.View = view
-
 	tv.updateProgress()
 	tv.updateText()
 
@@ -107,6 +108,7 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 	tv.updateProgress()
 }
 
+// onProgressTapped handles the action of navigating to a specific paragraph.
 func (tv *TranslationView) onProgressTapped() {
 	selected := binding.NewString()
 	selected.Set(fmt.Sprintf("%d", tv.paragraph))
@@ -138,6 +140,7 @@ func (tv *TranslationView) onProgressTapped() {
 	).Show()
 }
 
+// onPrevious handles the action of moving to the previous word or paragraph.
 func (tv *TranslationView) onPrevious() {
 	// Move to the previous word
 	if tv.txt.Previous() {
@@ -174,16 +177,17 @@ func (tv *TranslationView) updateText() {
 		text := "No text available for this paragraph."
 		translator, err := Main.Translator()
 		if err == nil && translator != nil {
-			duration := translator.TranslationDuration(p.ID)
-			if duration > 0 {
-				text = fmt.Sprintf("Translation in progress for paragraph %v (%v elapsed)", tv.paragraph, duration)
+			startTime := translator.TranslationTime(p.ID)
+			if startTime != (time.Time{}) {
+				text = fmt.Sprintf("Translation in progress for paragraph %v (%v elapsed)", tv.paragraph, humanize.Time(startTime))
 			}
 		}
 
 		label := widget.NewLabel(text)
 		label.Alignment = fyne.TextAlignCenter
 		label.Wrapping = fyne.TextWrapBreak
-		tv.panelMain.Add(container.NewCenter(label))
+
+		tv.panelMain.Add(label)
 
 	} else {
 		tv.panelMain.RemoveAll()
@@ -248,7 +252,7 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 				log.Printf("updated target paragraph %d with translation", paragraph)
 
 				activeProject := Main.Preferences().ActiveProject()
-				err = tv.project.Save(activeProject)
+				err = tv.project.SaveTo(activeProject)
 				if err != nil {
 					log.Printf("failed to save project: %v", err)
 				}

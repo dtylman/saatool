@@ -58,7 +58,10 @@ func (tt *ToolTool) saveProject() error {
 
 func (tt *ToolTool) getBookDetails(ctx context.Context, project *translation.Project) error {
 	log.Printf("Getting book details for project: %s", project.Title)
-	translator := ai.NewTranslator(tt.deepSeekKey)
+	translator, err := ai.NewTranslator(tt.deepSeekKey)
+	if err != nil {
+		return err
+	}
 
 	bookDetails, err := translator.GetBookDetails(ctx, ai.NewBookDetails(tt.ec.Project))
 	if err != nil {

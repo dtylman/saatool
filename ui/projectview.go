@@ -94,7 +94,7 @@ func (pl *ProjectView) onProjectFileOpened(reader fyne.URIReadCloser, err error)
 		defer pl.View.Refresh()
 		defer reader.Close()
 
-		projectPath := reader.URI().Path()
+		projectPath := reader.URI().String()
 		pl.project, err = translation.LoadProjectFromReader(reader)
 		if err != nil {
 			Main.ShowError(fmt.Sprintf("Failed to load project file '%v': %v", projectPath, err))
@@ -119,12 +119,18 @@ func (ed *ProjectView) setProject(project *translation.Project) {
 
 func (ed *ProjectView) setActiveProject() {
 	activeProject := Main.Preferences().ActiveProject()
-	log.Printf("active project file: '%s'", activeProject)
+	log.Printf("active project: '%s'", activeProject)
 	if activeProject == "" {
 		return
 	}
 
-	reader, err := storage.Reader(storage.NewFileURI(activeProject))
+	uri, err := storage.ParseURI(activeProject)
+	if err != nil {
+		Main.ShowError(fmt.Sprintf("Failed to parse active project URI '%s': %v", activeProject, err))
+		return
+	}
+
+	reader, err := storage.Reader(uri)
 	if err != nil {
 		Main.ShowError(fmt.Sprintf("Failed to open active project file '%s': %v", activeProject, err))
 		return

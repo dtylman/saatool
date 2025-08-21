@@ -205,13 +205,13 @@ func (t *Translator) Translate(ctx context.Context, project translation.Project,
 	return translationResponse.Target.Paragraphs[paragraphIndex-fromParagraphIndex].Text, nil
 }
 
-// TranslationDuration returns the duration of the translation for a given paragraph ID.
-func (t *Translator) TranslationDuration(paragraphID string) time.Duration {
+// TranslationTime returns the time taken for the translation of a paragraph.
+func (t *Translator) TranslationTime(paragraphID string) time.Time {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	startTime, exists := t.inTranslation[paragraphID]
 	if !exists {
-		return 0
+		return time.Time{}
 	}
-	return time.Since(startTime)
+	return startTime
 }
