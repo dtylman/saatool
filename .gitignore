@@ -34,5 +34,6 @@ cmd/saatool/saatool
 *.apk
 cmd/saatool/__debug*
 
-cmd/saatooltool/luciper.epub
 cmd/saatooltool/saatooltool
+luciper.json
+cmd/saatooltool/luciper.epub

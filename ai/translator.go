@@ -215,3 +215,21 @@ func (t *Translator) TranslationTime(paragraphID string) time.Time {
 	}
 	return startTime
 }
+
+// TranslationStats returns the number of translations in progress and the earliest time of translation.
+func (t *Translator) TranslationStats() (int, time.Time) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	count := len(t.inTranslation)
+	if count == 0 {
+		return 0, time.Time{}
+	}
+
+	var earliestTime time.Time
+	for _, startTime := range t.inTranslation {
+		if earliestTime.IsZero() || startTime.Before(earliestTime) {
+			earliestTime = startTime
+		}
+	}
+	return count, earliestTime
+}

@@ -3,13 +3,8 @@ package translation
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/storage"
 )
 
 // Character represents a character in a translation project.
@@ -77,59 +72,6 @@ func NewProject() *Project {
 	}
 }
 
-// SaveTo saves the project to the specified URI.
-func (p *Project) SaveTo(uriString string) error {
-	log.Printf("saving project to: %s", uriString)
-	uri, err := storage.ParseURI(uriString)
-	if err != nil {
-		return fmt.Errorf("failed to parse URI '%s': %w", uriString, err)
-	}
-	return p.Save(uri)
-}
-
-// Save saves the project to the specified URI.
-func (p *Project) Save(uri fyne.URI) error {
-	log.Printf("saving project to: %s", uri.String())
-	writer, err := storage.Writer(uri)
-	if err != nil {
-		return fmt.Errorf("failed to create writer: %w", err)
-	}
-	defer writer.Close()
-	data, err := json.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("failed to marshal project data: %w", err)
-	}
-	//todo: make sure we write all data
-	_, err = writer.Write(data)
-	if err != nil {
-		return fmt.Errorf("failed to write project data: %w", err)
-	}
-	log.Printf("project saved to %s", uri.String())
-	return nil
-}
-
-func LoadProjectFromReader(reader io.ReadCloser) (*Project, error) {
-	log.Printf("loading project from reader")
-	if reader == nil {
-		return nil, fmt.Errorf("reader cannot be nil")
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("error reading project data: %w", err)
-	}
-
-	var project Project
-	err = json.Unmarshal(data, &project)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling project data: %w", err)
-	}
-
-	project.Normalize()
-
-	return &project, nil
-}
-
 // Normalize ensures that the project has valid data.
 func (p *Project) Normalize() {
 	if len(p.Source.Paragraphs) > len(p.Target.Paragraphs) {
@@ -146,4 +88,21 @@ func (p *Project) Normalize() {
 			p.Target.Paragraphs[i].ID = p.Source.Paragraphs[i].ID
 		}
 	}
+}
+
+// SetTranslation sets the translation for a specific paragraph in the project.
+func (p *Project) SetTranslation(paragraph int, translated string) error {
+	log.Printf("setting translation for paragraph %d", paragraph)
+	if paragraph < 0 || paragraph >= len(p.Source.Paragraphs) {
+		return fmt.Errorf("paragraph index %d out of range", paragraph)
+	}
+	p.Normalize()
+	p.Target.Paragraphs[paragraph].Text = translated
+	p.Target.Paragraphs[paragraph].ID = p.Source.Paragraphs[paragraph].ID
+	return nil
+}
+
+// IsEmpty checks if the project has no source or target paragraphs.
+func (p *Project) IsEmpty() bool {
+	return len(p.Source.Paragraphs) == 0 && len(p.Target.Paragraphs) == 0
 }

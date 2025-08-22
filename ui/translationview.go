@@ -251,11 +251,11 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
 				log.Printf("updated target paragraph %d with translation", paragraph)
 
-				activeProject := Main.Preferences().ActiveProject()
-				err = tv.project.SaveTo(activeProject)
-				if err != nil {
-					log.Printf("failed to save project: %v", err)
-				}
+				// activeProject := Main.Preferences().ActiveProject()
+				// err = tv.project.SaveTo(activeProject)
+				// if err != nil {
+				// 	log.Printf("failed to save project: %v", err)
+				// }
 				// Update the text view if the current paragraph is being displayed
 				if tv.paragraph == paragraph {
 					tv.updateText()

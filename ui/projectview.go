@@ -60,7 +60,8 @@ func NewProjectView() *ProjectView {
 	)
 
 	Main.ClearActions()
-	Main.AddAction("Open", widgets.IconOpen, pv.onOpenTapped)
+	Main.AddAction("Import", widgets.IconOpen, pv.onImportTapped)
+	Main.AddAction("Export", widgets.IconSave, pv.onExportTapped)
 	Main.AddAction("Translate", widgets.IconTranslate, pv.onTranslateTapped)
 
 	pv.View = form
@@ -80,8 +81,18 @@ func (ed *ProjectView) Save() {
 	ed.project.Prompt = ed.promptEntry.Text
 }
 
+// onExportTapped handles the Export action for the project.
+func (pl *ProjectView) onExportTapped() {
+	if pl.project == nil {
+		Main.ShowError("No project loaded to export.")
+		return
+	}
+	pl.Save()
+	// Main.SaveFileDialog(pl.project.Name+".json", pl.onProjectFileSaved)
+}
+
 // onOpenTapped handles the Open action for the project.
-func (pl *ProjectView) onOpenTapped() {
+func (pl *ProjectView) onImportTapped() {
 	Main.OpenFileDialog(pl.onProjectFileOpened, ".json")
 }
 
@@ -95,12 +106,12 @@ func (pl *ProjectView) onProjectFileOpened(reader fyne.URIReadCloser, err error)
 		defer reader.Close()
 
 		projectPath := reader.URI().String()
-		pl.project, err = translation.LoadProjectFromReader(reader)
-		if err != nil {
-			Main.ShowError(fmt.Sprintf("Failed to load project file '%v': %v", projectPath, err))
-			return
-		}
-		pl.setProject(pl.project)
+		// pl.project, err = translation.LoadProjectFromReader(reader)
+		// if err != nil {
+		// 	Main.ShowError(fmt.Sprintf("Failed to load project file '%v': %v", projectPath, err))
+		// 	return
+		// }
+		// pl.setProject(pl.project)
 		Main.Preferences().SetActiveProject(projectPath)
 	})
 }
@@ -136,12 +147,12 @@ func (ed *ProjectView) setActiveProject() {
 		return
 	}
 	defer reader.Close()
-	ed.project, err = translation.LoadProjectFromReader(reader)
-	if err != nil {
-		Main.ShowError(fmt.Sprintf("Failed to load active project file '%s': %v", activeProject, err))
-		return
-	}
-	ed.setProject(ed.project)
+	// ed.project, err = translation.LoadProjectFromReader(reader)
+	// if err != nil {
+	// 	Main.ShowError(fmt.Sprintf("Failed to load active project file '%s': %v", activeProject, err))
+	// 	return
+	// }
+	// ed.setProject(ed.project)
 	log.Printf("loaded active project: %s", ed.project.Name)
 
 }

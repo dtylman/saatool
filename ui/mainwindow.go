@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"fyne.io/x/fyne/layout"
 	"github.com/dtylman/saatool/ai"
+	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -23,7 +24,15 @@ type MainWindow struct {
 	fyneApp    fyne.App
 	window     fyne.Window
 	toolBar    *fyne.Container
+	header     *widget.Label
 	translator *ai.Translator
+}
+
+func (mw *MainWindow) OpenSaveDialog(callback func(fyne.URIWriteCloser, error), filter ...string) {
+	fg := dialog.NewFileSave(callback, mw.window)
+	fg.SetFilter(storage.NewExtensionFileFilter(filter))
+	fg.SetFileName(Main.Preferences().ActiveProject())
+	fg.Show()
 }
 
 // OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
@@ -43,6 +52,7 @@ func NewMainWindow() error {
 		fyneApp: app.New(),
 		window:  nil,
 		toolBar: container.NewHBox(),
+		header:  widget.NewLabel("SaaTool"),
 	}
 
 	return nil
@@ -63,6 +73,7 @@ func (mw *MainWindow) ShowAndRun() {
 	mw.onProjectTapped()
 
 	mw.window.ShowAndRun()
+
 }
 
 // SetContent sets the content of the main window.
@@ -70,7 +81,7 @@ func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 	fyne.Do(func() {
 		panelTop := container.NewHBox(
 			widget.NewIcon(widgets.IconLogo),
-			widget.NewLabel("SaaTool"),
+			mw.header,
 		)
 
 		panelBottom := container.NewVBox(
@@ -114,6 +125,10 @@ func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func())
 }
 
 func (mw *MainWindow) onSettingsTapped() {
+	err := config.ReadWriteCreate()
+	mw.ShowMessage(fmt.Sprintf("Read Write Create: %v", err))
+	return
+
 	mw.SetContent(
 		NewSettingsView(Main.Preferences()).View,
 	)
