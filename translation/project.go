@@ -3,8 +3,13 @@ package translation
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/dtylman/saatool/config"
 )
 
 // Character represents a character in a translation project.
@@ -66,10 +71,28 @@ type Project struct {
 }
 
 // NewProject creates a new translation project with empty source and target units.
-func NewProject() *Project {
+func NewProject(name string) *Project {
 	return &Project{
+		Name:       name,
+		Source:     Unit{Paragraphs: make([]Paragraph, 0)},
+		Target:     Unit{Paragraphs: make([]Paragraph, 0)},
 		Characters: make([]Character, 0),
 	}
+}
+
+// LoadProject loads a project from the specified file path.
+func LoadProject(path string) (*Project, error) {
+	log.Printf("loading project from %s", path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read project file: %v", err)
+	}
+	var proj Project
+	err = json.Unmarshal(data, &proj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal project file: %v", err)
+	}
+	return &proj, nil
 }
 
 // Normalize ensures that the project has valid data.
@@ -105,4 +128,23 @@ func (p *Project) SetTranslation(paragraph int, translated string) error {
 // IsEmpty checks if the project has no source or target paragraphs.
 func (p *Project) IsEmpty() bool {
 	return len(p.Source.Paragraphs) == 0 && len(p.Target.Paragraphs) == 0
+}
+
+// Save saves the project to its file.
+func (p *Project) Save() (string, error) {
+	log.Printf("saving project '%v'", p.Name)
+	if p.Name == "" {
+		return "", fmt.Errorf("project name is empty")
+	}
+	data, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal project: %v", err)
+	}
+	fileName := filepath.Join(config.ProjectsDir(), p.Name)
+	log.Printf("writing project to %s", fileName)
+	err = os.WriteFile(fileName, data, 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write project file: %v", err)
+	}
+	return fileName, nil
 }

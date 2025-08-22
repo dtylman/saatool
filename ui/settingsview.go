@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -34,21 +35,26 @@ func NewSettingsView(preferences *PreferencesDecorator) *SettingsView {
 	Main.ClearActions()
 	Main.AddAction("Save", widgets.IconSave, sv.onSaveTapped)
 
-	sv.entryDeepSeekAPIKey.SetText(preferences.DeepSeekAPIKey())
-	sv.entryTextSize.SetText(fmt.Sprintf("%v", preferences.AppSize()))
+	sv.entryDeepSeekAPIKey.SetText(config.Options.DeepSeekAPIKey)
+	sv.entryTextSize.SetText(fmt.Sprintf("%v", config.Options.AppSize))
 
 	return sv
 
 }
 
 func (sv *SettingsView) onSaveTapped() {
-	sv.preferences.SetDeepSeekAPIKey(sv.entryDeepSeekAPIKey.Text)
+	config.Options.DeepSeekAPIKey = sv.entryDeepSeekAPIKey.Text
 	newSize, err := strconv.Atoi(sv.entryTextSize.Text)
 	if err != nil {
 		log.Printf("invalid app size: %v", err)
-		sv.entryTextSize.SetText(fmt.Sprintf("%v", sv.preferences.AppSize()))
+		sv.entryTextSize.SetText(fmt.Sprintf("%v", config.Options.AppSize))
 	} else {
-		sv.preferences.SetAppSize(newSize)
+		config.Options.AppSize = newSize
 	}
 
+	err = config.SaveOptions()
+	if err != nil {
+		log.Printf("failed to save settings: %v", err)
+		Main.ShowError(fmt.Sprintf("failed to save settings: %v", err))
+	}
 }

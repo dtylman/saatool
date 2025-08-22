@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -63,7 +64,11 @@ func (mw *MainWindow) ShowAndRun() {
 
 	mw.fyneApp = app.New()
 
-	mw.fyneApp.Settings().SetTheme(widgets.NewTheme(Main.Preferences().AppSize()))
+	err := config.LoadOptions()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+	mw.fyneApp.Settings().SetTheme(widgets.NewTheme(config.Options.AppSize))
 
 	mw.window = mw.fyneApp.NewWindow("SaaTool")
 
@@ -125,10 +130,6 @@ func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func())
 }
 
 func (mw *MainWindow) onSettingsTapped() {
-	err := config.ReadWriteCreate()
-	mw.ShowMessage(fmt.Sprintf("Read Write Create: %v", err))
-	return
-
 	mw.SetContent(
 		NewSettingsView(Main.Preferences()).View,
 	)
@@ -136,7 +137,7 @@ func (mw *MainWindow) onSettingsTapped() {
 
 func (mw *MainWindow) onProjectTapped() {
 	mw.SetContent(
-		NewProjectView().View,
+		NewProjectsView().View,
 	)
 }
 
@@ -163,7 +164,7 @@ func (mw *MainWindow) Translator() (*ai.Translator, error) {
 
 	if mw.translator == nil {
 		var err error
-		mw.translator, err = ai.NewTranslator(mw.Preferences().DeepSeekAPIKey())
+		mw.translator, err = ai.NewTranslator(config.Options.DeepSeekAPIKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create translator: %v", err)
 		}

@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 	"github.com/dustin/go-humanize"
@@ -49,7 +50,7 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	Main.AddActionWidget(widget.NewSeparator())
 
 	tv.txt.Direction = widgets.RightToLeft
-	appSize := Main.Preferences().AppSize()
+	appSize := config.Options.AppSize
 	tv.txt.TextSize = float32(appSize) * 2
 	tv.txt.Padding = float32(appSize) / 2
 	tv.txt.Spacing = float32(appSize) / 2
@@ -96,7 +97,7 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 	tv.paragraph = paragraph
 	if !tv.source {
 		tv.translate(tv.paragraph, tv.project.Source.Language, tv.project.Target.Language, false)
-		translateAhead := Main.Preferences().TranslateAhead()
+		translateAhead := config.Options.TranslateAhead
 		for i := 1; i <= translateAhead; i++ {
 			if tv.paragraph+i < len(tv.project.Target.Paragraphs) {
 				tv.translate(tv.paragraph+i, tv.project.Source.Language, tv.project.Target.Language, false)
@@ -179,7 +180,7 @@ func (tv *TranslationView) updateText() {
 		if err == nil && translator != nil {
 			startTime := translator.TranslationTime(p.ID)
 			if startTime != (time.Time{}) {
-				text = fmt.Sprintf("Translation in progress for paragraph %v (%v elapsed)", tv.paragraph, humanize.Time(startTime))
+				text = fmt.Sprintf("Translation in progress for paragraph %v %v", tv.paragraph, humanize.Time(startTime))
 			}
 		}
 

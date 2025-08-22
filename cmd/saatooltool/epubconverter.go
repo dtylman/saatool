@@ -5,6 +5,7 @@ import (
 	"html"
 	"io"
 	"log"
+	"path"
 	"strings"
 
 	"github.com/dtylman/saatool/translation"
@@ -22,7 +23,7 @@ type EPubConverter struct {
 func NewEPubConverter() *EPubConverter {
 	return &EPubConverter{
 		rc:       nil,
-		Project:  translation.NewProject(),
+		Project:  translation.NewProject("New Project"),
 		bp:       bluemonday.StrictPolicy(),
 		maxLines: 5,
 	}
@@ -42,7 +43,8 @@ func (ec *EPubConverter) ConvertEPub(fileName string) error {
 		return fmt.Errorf("no root files found in EPUB")
 	}
 
-	ec.Project = translation.NewProject()
+	_, name := path.Split(fileName)
+	ec.Project = translation.NewProject(name)
 	book := ec.rc.Rootfiles[0]
 
 	ec.Project.Title = book.Title
