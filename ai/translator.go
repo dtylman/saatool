@@ -189,7 +189,7 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 		return fmt.Errorf("failed to marshal book details: %v", err)
 	}
 
-	systemPrompt, err := GetPrompt(`You are a translation proofreader. The translation '{{source_lang}}' to '{{target_lang}}' was reported bad from the readers. Since you are also a native speaker of both '{{source_lang}}' and '{{target_lang}}', your task is to re-translate the text in the provided json. Fix any issues with translation, make an extra care to make sure all words and terms in the target language makes sense and are grammatically correct. Also make sure the target text avoids using terms from other languages. Here is some background information about the book being translated: {{book_details}}`,
+	systemPrompt, err := GetPrompt(`You are a translation proofreader. The translation '{{.source_lang}}' to '{{.target_lang}}' was reported bad from the readers. Since you are also a native speaker of both '{{.source_lang}}' and '{{.target_lang}}', your task is to re-translate the text in the provided json. Fix any issues with translation, make an extra care to make sure all words and terms in the target language makes sense and are grammatically correct. Also make sure the target text avoids using terms from other languages. Here is some background information about the book being translated: {{.book_details}}`,
 		map[string]string{
 			"source_lang":  sourceLang,
 			"target_lang":  targetLang,
@@ -205,7 +205,7 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	if err != nil {
 		return fmt.Errorf("failed to marshal translation context: %v", err)
 	}
-	userPrompt, err := GetPrompt(`The provided JSON object contains a bad 'target' translation. Please re-translate to from 'source' paragraph to '{{target_lang}}' it and provide the corrected translation in the same JSON format. Here is the JSON object: {{data}}`,
+	userPrompt, err := GetPrompt(`The provided JSON object contains a bad 'target' translation. Please re-translate to from 'source' paragraph to '{{.target_lang}}' it and provide the corrected translation in the same JSON format. Here is the JSON object: {{.data}}`,
 		map[string]string{
 			"target_lang": targetLang,
 			"data":        string(jsonData),
@@ -324,7 +324,7 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 		return "", fmt.Errorf("failed to marshal book details: %v", err)
 	}
 
-	systemPrompt, err := GetPrompt(`You are the perfect translator from '{{source_lang}}' to '{{target_lang}}'. You are native speaker of both '{{source_lang}}' and '{{target_lang}}'. Your task is to translate '{{book_title}}', which is a {{book_type}}. The translation is done paragraph by paragraph. Make sure to translate the text accurately and preserve its meaning and the writer style. Translate to contemporary '{{target_lang}}' and make sure it is easy to comprehend. Make an effort to have the translation as native as possible to the the target language without losing its essence. Here are some details about the book: {{book_details}}`,
+	systemPrompt, err := GetPrompt(`You are the perfect translator from '{{.source_lang}}' to '{{.target_lang}}'. You are native speaker of both '{{.source_lang}}' and '{{.target_lang}}'. Your task is to translate '{{.book_title}}', which is a {{.book_type}}. The translation is done paragraph by paragraph. Make sure to translate the text accurately and preserve its meaning and the writer style. Translate to contemporary '{{.target_lang}}' and make sure it is easy to comprehend. Make an effort to have the translation as native as possible to the the target language without losing its essence. Here are some details about the book: {{.book_details}}`,
 		map[string]string{
 			"source_lang":  sourceLang,
 			"target_lang":  targetLang,
