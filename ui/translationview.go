@@ -23,15 +23,16 @@ import (
 
 // TranslationView represents the view for translating text in a project.
 type TranslationView struct {
-	View           fyne.CanvasObject
-	project        *translation.Project
-	translator     *ai.Translator
-	txt            *widgets.BidiText
-	panelMain      *fyne.Container
-	btnProgress    *widget.Button
-	sourceView     bool   // true for source language, false for target language
-	paragraphIndex int    // current paragraph index
-	projectHash    []byte // hash of the project to detect changes
+	View             fyne.CanvasObject
+	project          *translation.Project
+	translator       *ai.Translator
+	txt              *widgets.BidiText
+	panelMain        *fyne.Container
+	btnProgress      *widget.Button
+	lblInTranslation *widget.Label
+	sourceView       bool   // true for source language, false for target language
+	paragraphIndex   int    // current paragraph index
+	projectHash      []byte // hash of the project to detect changes
 
 }
 
@@ -43,23 +44,26 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	}
 
 	tv := &TranslationView{
-		project:        project,
-		txt:            widgets.NewBidiText(),
-		btnProgress:    widget.NewButton("", nil),
-		sourceView:     project.LastSourceView,
-		paragraphIndex: project.LastParagraphIndex,
-		translator:     translator,
+		project:          project,
+		txt:              widgets.NewBidiText(),
+		btnProgress:      widget.NewButton("", nil),
+		sourceView:       project.LastSourceView,
+		paragraphIndex:   project.LastParagraphIndex,
+		translator:       translator,
+		lblInTranslation: widget.NewLabel(""),
 	}
 
 	tv.translator.OnTranslationComplete = tv.onTranslationCompleted
 
-	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.ClearActions()
 	Main.AddActionWidget(widget.NewCheck("Source", tv.onSourceChange))
 	Main.AddAction("Next", widgets.IconNext, tv.onNext)
 	Main.AddAction("Previous", widgets.IconPrev, tv.onPrevious)
+	Main.AddAction("Fix", widgets.IconFix, tv.onFixParagraph)
 
+	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
+	Main.AddActionWidget(tv.lblInTranslation)
 
 	tv.txt.Direction = widgets.RightToLeft
 	appSize := config.Options.AppSize
@@ -71,6 +75,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	view := widgets.NewPanel(tv.panelMain, fyne.NewSize(0, 0))
 	view.OnTapped = tv.onMainPanelTapped
 	tv.View = view
+
 	tv.updateProgress()
 	tv.updateText()
 
@@ -231,6 +236,8 @@ func (tv *TranslationView) updateProgress() {
 	tv.btnProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraphIndex, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
 	tv.project.LastSourceView = tv.sourceView
 	tv.project.LastParagraphIndex = tv.paragraphIndex
+	count, since := tv.translator.TranslationStats()
+	tv.lblInTranslation.SetText(fmt.Sprintf("%d trans since %s", count, humanize.Time(since)))
 }
 
 // updateText updates the text displayed in the translation view based on the current paragraph and language.
@@ -282,4 +289,10 @@ func (tv *TranslationView) updateText() {
 func (tv *TranslationView) onSourceChange(checked bool) {
 	tv.sourceView = checked
 	tv.updateText()
+}
+
+// onFixParagraph handles the action of fixing the current paragraph by re-translating it.
+func (tv *TranslationView) onFixParagraph() {
+	go tv.translator.FixTranslation(context.Background(), tv.paragraphIndex)
+	tv.updateProgress()
 }

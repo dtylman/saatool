@@ -45,3 +45,7 @@ var IconReload = fyne.NewStaticResource("reload.svg", iconReload)
 //go:embed save.svg
 var iconSave []byte
 var IconSave = fyne.NewStaticResource("save.svg", iconSave)
+
+//go:embed fix.svg
+var iconFix []byte
+var IconFix = fyne.NewStaticResource("fix.svg", iconFix)

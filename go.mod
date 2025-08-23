@@ -8,6 +8,7 @@ require (
 	fyne.io/fyne/v2 v2.6.2
 	fyne.io/x/fyne v0.0.0-20250418202416-58a230ad1acb
 	github.com/cohesion-org/deepseek-go v1.3.2
+	github.com/dustin/go-humanize v1.0.1
 	github.com/emvi/iso-639-1 v1.1.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/taylorskalyo/goreader v1.0.1
@@ -19,7 +20,6 @@ require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fredbi/uri v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fyne-io/gl-js v0.2.0 // indirect

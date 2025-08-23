@@ -104,6 +104,17 @@ func (p *Project) GetSourceParagraph(paragraphIndex int) (Paragraph, error) {
 	return p.Source.Paragraphs[paragraphIndex], nil
 }
 
+// GetTargetParagraph returns the target paragraph at the given index.
+func (p *Project) GetTargetParagraph(paragraphIndex int) (Paragraph, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if paragraphIndex < 0 || paragraphIndex >= len(p.Target.Paragraphs) {
+		return Paragraph{}, fmt.Errorf("paragraph index %d out of range", paragraphIndex)
+	}
+	return p.Target.Paragraphs[paragraphIndex], nil
+}
+
 // NewProject creates a new translation project with empty source and target units.
 func NewProject(name string) *Project {
 	return &Project{
@@ -223,4 +234,13 @@ func (p *Project) GetTitle() string {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	return p.Title
+}
+
+func (p *Project) GetType() string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.Genre == "Article" {
+		return "article"
+	}
+	return "book"
 }
