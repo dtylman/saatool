@@ -1,16 +1,29 @@
 package main
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+	"unicode"
+)
 
 type ParagraphSplitter struct {
-	maxLines   int
+	// Maximum number of words per paragraph
+	maxWords int
+	// Tolerance for maximum words before forcing a split
+	maxWordsTolerance int
+	// Accumulated paragraphs
 	paragraphs []string
 }
 
-func NewParagraphSplitter(maxLines int) *ParagraphSplitter {
+// NewParagraphSplitter creates a new ParagraphSplitter with the specified maximum words per paragraph.
+func NewParagraphSplitter(maxWords int, maxWordsTolerance int) *ParagraphSplitter {
+	if maxWordsTolerance < maxWords {
+		maxWordsTolerance = maxWords + 20 // default tolerance
+	}
 	return &ParagraphSplitter{
-		maxLines:   maxLines,
-		paragraphs: make([]string, 0),
+		maxWords:          maxWords,
+		maxWordsTolerance: maxWordsTolerance,
+		paragraphs:        make([]string, 0),
 	}
 }
 
@@ -21,32 +34,117 @@ func (ps *ParagraphSplitter) addParagraph(text string) {
 	ps.paragraphs = append(ps.paragraphs, text)
 }
 
+/*
+Split the given text into paragraphs based on the following rules:
+
+Pre process: Trim all non-ascii text and whitespace except new lines, can use a regular expression. I want a clean text with letters, numbers, punctuation and new lines only.
+
+Split the text into words, an empty line should be represented as an empty string in the words array.
+
+Run on the words array and split them into paragraphs, use the 'addParagraph' method to add a new paragraph.
+
+New paragraphs should be created when:
+
+1. An empty line is encountered.
+2. A line that starts with a space followed by a non-space character is encountered (indicating an indented paragraph).
+3. The number of words in the current paragraph exceeds 'maxWords' and the current word ends with a sentence-ending punctuation mark (., !, ?).
+4. The number of words in the current paragraph exceeds maxWordsTolerance, in this case, split at the last space before maxWords if possible, otherwise split at maxWords.
+*/
+
+func isSentenceEnd(word string) bool {
+	if len(word) == 0 {
+		return false
+	}
+	last := word[len(word)-1]
+	return last == '.' || last == '!' || last == '?'
+}
+
 func (ps *ParagraphSplitter) Split(text string) []string {
-	ps.paragraphs = make([]string, 0)
-	lines := strings.Split(text, "\n")
-	currentParagraph := strings.Builder{}
-	count := 0
-	for _, line := range lines {
-		if len(line) > 1 {
-			if line[0] == ' ' && line[1] != ' ' {
-				ps.addParagraph(currentParagraph.String())
-				currentParagraph.Reset()
-			}
+	// Preprocess: keep only ASCII letters, numbers, punctuation, and newlines
+	re := regexp.MustCompile(`[^\x20-\x7E\n]`)
+	clean := re.ReplaceAllString(text, "")
+	// Normalize whitespace except newlines
+	clean = regexp.MustCompile(`[ \t\r\f\v]+`).ReplaceAllStringFunc(clean, func(s string) string {
+		if strings.Contains(s, "\n") {
+			return "\n"
 		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			ps.addParagraph(currentParagraph.String())
-			currentParagraph.Reset()
-		} else {
-			count++
-			if count > ps.maxLines {
-				ps.addParagraph(currentParagraph.String())
-				currentParagraph.Reset()
-				count = 1 // Reset count for the new paragraph
-			}
-			currentParagraph.WriteString(line + "\n")
+		return " "
+	})
+
+	lines := strings.Split(clean, "\n")
+	words := make([]string, 0)
+	for _, line := range lines {
+		trimmed := strings.TrimRightFunc(line, unicode.IsSpace)
+		if trimmed == "" {
+			words = append(words, "")
+			continue
+		}
+		// preserve leading spaces for indented lines
+		if len(line) > 1 && line[0] == ' ' && line[1] != ' ' {
+			words = append(words, line)
+			continue
+		}
+		for _, w := range strings.Fields(line) {
+			words = append(words, w)
 		}
 	}
-	ps.addParagraph(currentParagraph.String())
+
+	ps.paragraphs = make([]string, 0)
+	var (
+		currentParagraph []string
+		wordCount        int
+	)
+
+	for i := 0; i < len(words); i++ {
+		word := words[i]
+
+		// 1. Empty line triggers paragraph split
+		if word == "" {
+			ps.addParagraph(strings.Join(currentParagraph, " "))
+			currentParagraph = nil
+			wordCount = 0
+			continue
+		}
+
+		// 2. Indented line triggers paragraph split
+		if len(word) > 1 && word[0] == ' ' && word[1] != ' ' {
+			ps.addParagraph(strings.Join(currentParagraph, " "))
+			currentParagraph = []string{strings.TrimLeft(word, " ")}
+			wordCount = len(strings.Fields(word))
+			continue
+		}
+
+		currentParagraph = append(currentParagraph, word)
+		wordCount++
+
+		// 3. Split if wordCount > maxWords and ends with sentence-ending punctuation
+		if wordCount > ps.maxWords && isSentenceEnd(word) {
+			ps.addParagraph(strings.Join(currentParagraph, " "))
+			currentParagraph = nil
+			wordCount = 0
+			continue
+		}
+
+		// 4. Split if wordCount > maxWordsTolerance
+		if wordCount > ps.maxWordsTolerance {
+			// Try to split at last space before maxWords
+			splitIdx := -1
+			count := 0
+			for j := range currentParagraph {
+				count++
+				if count == ps.maxWords {
+					splitIdx = j
+					break
+				}
+			}
+			if splitIdx == -1 {
+				splitIdx = ps.maxWords
+			}
+			ps.addParagraph(strings.Join(currentParagraph[:splitIdx], " "))
+			currentParagraph = currentParagraph[splitIdx:]
+			wordCount = len(currentParagraph)
+		}
+	}
+	ps.addParagraph(strings.Join(currentParagraph, " "))
 	return ps.paragraphs
 }

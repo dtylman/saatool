@@ -17,20 +17,22 @@ type EPubConverter struct {
 	rc       *epub.ReadCloser
 	Project  *translation.Project
 	bp       *bluemonday.Policy
-	maxLines int
+	maxWords int
 }
 
 func NewEPubConverter() *EPubConverter {
 	return &EPubConverter{
 		rc:       nil,
-		Project:  translation.NewProject("New Project"),
+		Project:  nil,
 		bp:       bluemonday.StrictPolicy(),
-		maxLines: 5,
+		maxWords: 200,
 	}
 }
 
 func (ec *EPubConverter) ConvertEPub(fileName string) error {
 	log.Printf("Converting EPUB file: %v", fileName)
+
+	ec.Project = translation.NewProject(fileName)
 
 	var err error
 	ec.rc, err = epub.OpenReader(fileName)
@@ -82,7 +84,7 @@ func (ec *EPubConverter) processItem(item epub.Itemref) error {
 	text = html.UnescapeString(text)
 	text = strings.TrimSpace(text)
 
-	splitter := NewParagraphSplitter(ec.maxLines)
+	splitter := NewParagraphSplitter(ec.maxWords, ec.maxWords+20)
 	paragraphs := splitter.Split(text)
 	for _, paragraph := range paragraphs {
 		if strings.TrimSpace(paragraph) == "" {

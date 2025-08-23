@@ -1,10 +1,13 @@
 package translation
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -130,7 +133,20 @@ func NewProject(name string) *Project {
 // LoadProject loads a project from the specified file path.
 func LoadProject(path string) (*Project, error) {
 	log.Printf("loading project from %s", path)
-	data, err := os.ReadFile(path)
+
+	inFile, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open project file: %v", err)
+	}
+	defer inFile.Close()
+
+	gzipReader, err := gzip.NewReader(inFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+	}
+	defer gzipReader.Close()
+
+	data, err := io.ReadAll(gzipReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read project file: %v", err)
 	}
@@ -140,6 +156,42 @@ func LoadProject(path string) (*Project, error) {
 		return nil, fmt.Errorf("failed to unmarshal project file: %v", err)
 	}
 	return &proj, nil
+}
+
+// Save saves the project to its file.
+func (p *Project) Save() (string, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	log.Printf("saving project '%v'", p.Name)
+	if p.Name == "" {
+		return "", fmt.Errorf("project name is empty")
+	}
+	data, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal project: %v", err)
+	}
+
+	fileName := filepath.Join(config.ProjectsDir(), p.Name)
+	log.Printf("writing project to %s", fileName)
+
+	outFile, err := os.Create(fileName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create project file: %v", err)
+	}
+	defer outFile.Close()
+
+	gzipWriter := gzip.NewWriter(outFile)
+	defer gzipWriter.Close()
+
+	n, err := io.Copy(gzipWriter, bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("failed to write project file: %v", err)
+	}
+
+	log.Printf("wrote %d bytes to %s", n, fileName)
+
+	return fileName, nil
 }
 
 // Normalize ensures that the project has valid data.
@@ -195,28 +247,6 @@ func (p *Project) IsEmpty() bool {
 	defer p.mutex.Unlock()
 
 	return len(p.Source.Paragraphs) == 0 && len(p.Target.Paragraphs) == 0
-}
-
-// Save saves the project to its file.
-func (p *Project) Save() (string, error) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	log.Printf("saving project '%v'", p.Name)
-	if p.Name == "" {
-		return "", fmt.Errorf("project name is empty")
-	}
-	data, err := json.MarshalIndent(p, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal project: %v", err)
-	}
-	fileName := filepath.Join(config.ProjectsDir(), p.Name)
-	log.Printf("writing project to %s", fileName)
-	err = os.WriteFile(fileName, data, 0644)
-	if err != nil {
-		return "", fmt.Errorf("failed to write project file: %v", err)
-	}
-	return fileName, nil
 }
 
 // Lock locks the project for safe concurrent access.

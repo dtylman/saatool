@@ -2,24 +2,22 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"log"
-	"os"
 
 	"github.com/dtylman/saatool/ai"
+	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
 
 type ToolTool struct {
-	ec          *EPubConverter
-	inFile      string
-	outFile     string
-	maxLines    int
-	fromLang    string
-	toLang      string
-	deepSeekKey string
-	getDetails  bool
+	ec         *EPubConverter
+	inFile     string
+	outFile    string
+	maxWords   int
+	fromLang   string
+	toLang     string
+	getDetails bool
 }
 
 func (tt *ToolTool) Run(ctx context.Context) error {
@@ -37,23 +35,16 @@ func (tt *ToolTool) Run(ctx context.Context) error {
 		}
 	}
 
-	return tt.saveProject()
+	tt.ec.Project.Source.Language = tt.fromLang
+	tt.ec.Project.Target.Language = tt.toLang
 
-}
-
-func (tt *ToolTool) saveProject() error {
-	log.Printf("saving project to: %s", tt.outFile)
-	data, err := json.MarshalIndent(tt.ec.Project, "", "  ")
+	fileName, err := tt.ec.Project.Save()
 	if err != nil {
 		return err
 	}
-
-	err = os.WriteFile(tt.outFile, data, 0644)
-	if err != nil {
-		return err
-	}
-	log.Printf("Project saved to %s", tt.outFile)
+	log.Printf("project saved to: '%s'", fileName)
 	return nil
+
 }
 
 func (tt *ToolTool) getBookDetails(ctx context.Context, project *translation.Project) error {
@@ -79,18 +70,22 @@ func (tt *ToolTool) getBookDetails(ctx context.Context, project *translation.Pro
 }
 
 func main() {
+
 	tt := &ToolTool{}
 	flag.StringVar(&tt.inFile, "in", "", "Input EPUB file")
-	flag.StringVar(&tt.outFile, "out", "project.json", "Output project file")
-	flag.IntVar(&tt.maxLines, "maxlines", 5, "Maximum lines per paragraph")
+	flag.IntVar(&tt.maxWords, "maxwords", 200, "Maximum words per paragraph")
 	flag.StringVar(&tt.fromLang, "from", "english", "Source language")
 	flag.StringVar(&tt.toLang, "to", "hebrew", "Target language")
-	flag.StringVar(&tt.deepSeekKey, "key", "", "DeepSeek API key")
+	flag.StringVar(&config.Options.DeepSeekAPIKey, "key", "", "DeepSeek API key")
 	flag.BoolVar(&tt.getDetails, "details", false, "Get book details")
 	flag.Parse()
 
 	if tt.inFile == "" {
 		log.Fatal("Input file is required")
+	}
+
+	if tt.toLang == "" {
+		log.Fatal("Target language is required")
 	}
 
 	err := tt.Run(context.Background())

@@ -8,7 +8,7 @@ import (
 )
 
 // ProjectFileExt is the file extension for project files
-const ProjectFileExt = ".json"
+const ProjectFileExt = ".spz" //satool project gzip
 
 // ProjectFile represents a translation project file
 type ProjectFile struct {
