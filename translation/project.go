@@ -68,15 +68,21 @@ type Project struct {
 	Target Unit `json:"target"`
 	// Prompt is the translation prompt or instructions for the translator.
 	Prompt string `json:"prompt"`
+	// LastSourceView indicates whether the last view was source or target.
+	LastSourceView bool `json:"last_source_view"`
+	// LastParagraphIndex is the index of the last viewed paragraph.
+	LastParagraphIndex int `json:"last_paragraph_index"`
 }
 
 // NewProject creates a new translation project with empty source and target units.
 func NewProject(name string) *Project {
 	return &Project{
-		Name:       name,
-		Source:     Unit{Paragraphs: make([]Paragraph, 0)},
-		Target:     Unit{Paragraphs: make([]Paragraph, 0)},
-		Characters: make([]Character, 0),
+		Name:               name,
+		Source:             Unit{Paragraphs: make([]Paragraph, 0)},
+		Target:             Unit{Paragraphs: make([]Paragraph, 0)},
+		Characters:         make([]Character, 0),
+		LastSourceView:     true,
+		LastParagraphIndex: 0,
 	}
 }
 

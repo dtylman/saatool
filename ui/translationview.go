@@ -21,24 +21,24 @@ import (
 
 // TranslationView represents the view for translating text in a project.
 type TranslationView struct {
-	View        fyne.CanvasObject
-	project     *translation.Project
-	txt         *widgets.BidiText
-	panelMain   *fyne.Container
-	btnProgress *widget.Button
-	source      bool // true for source language, false for target language
-	paragraph   int  // current paragraph index
+	View           fyne.CanvasObject
+	project        *translation.Project
+	txt            *widgets.BidiText
+	panelMain      *fyne.Container
+	btnProgress    *widget.Button
+	sourceView     bool   // true for source language, false for target language
+	paragraphIndex int    // current paragraph index
+	projectHash    []byte // hash of the project to detect changes
+
 }
 
 func NewTranslationView(project *translation.Project) *TranslationView {
-	prefs := Main.Preferences()
-
 	tv := &TranslationView{
-		project:     project,
-		txt:         widgets.NewBidiText(),
-		btnProgress: widget.NewButton("", nil),
-		source:      prefs.LastTranslationSource(),
-		paragraph:   prefs.LastTranslationParagraph(),
+		project:        project,
+		txt:            widgets.NewBidiText(),
+		btnProgress:    widget.NewButton("", nil),
+		sourceView:     project.LastSourceView,
+		paragraphIndex: project.LastParagraphIndex,
 	}
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
@@ -85,22 +85,22 @@ func (tv *TranslationView) onNext() {
 		return
 	}
 	// Load the next paragraph
-	tv.SetParagraph(tv.paragraph + 1)
+	tv.SetParagraph(tv.paragraphIndex + 1)
 }
 
 // SetParagraph sets the current paragraph to display in the translation view.
 func (tv *TranslationView) SetParagraph(paragraph int) {
-	if (tv.paragraph == paragraph) || (paragraph < 0) || (paragraph >= len(tv.project.Target.Paragraphs)) {
+	if (tv.paragraphIndex == paragraph) || (paragraph < 0) || (paragraph >= len(tv.project.Target.Paragraphs)) {
 		return
 	}
 
-	tv.paragraph = paragraph
-	if !tv.source {
-		tv.translate(tv.paragraph, tv.project.Source.Language, tv.project.Target.Language, false)
+	tv.paragraphIndex = paragraph
+	if !tv.sourceView {
+		tv.translate(tv.paragraphIndex, tv.project.Source.Language, tv.project.Target.Language, false)
 		translateAhead := config.Options.TranslateAhead
 		for i := 1; i <= translateAhead; i++ {
-			if tv.paragraph+i < len(tv.project.Target.Paragraphs) {
-				tv.translate(tv.paragraph+i, tv.project.Source.Language, tv.project.Target.Language, false)
+			if tv.paragraphIndex+i < len(tv.project.Target.Paragraphs) {
+				tv.translate(tv.paragraphIndex+i, tv.project.Source.Language, tv.project.Target.Language, false)
 			}
 		}
 	}
@@ -112,7 +112,7 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 // onProgressTapped handles the action of navigating to a specific paragraph.
 func (tv *TranslationView) onProgressTapped() {
 	selected := binding.NewString()
-	selected.Set(fmt.Sprintf("%d", tv.paragraph))
+	selected.Set(fmt.Sprintf("%d", tv.paragraphIndex))
 	dialog.NewForm("Go to Paragraph", "Go", "Cancel",
 		[]*widget.FormItem{
 			widget.NewFormItem("Go to:", widget.NewEntryWithData(selected)),
@@ -150,27 +150,26 @@ func (tv *TranslationView) onPrevious() {
 	}
 
 	// Load the previous paragraph
-	tv.SetParagraph(tv.paragraph - 1)
+	tv.SetParagraph(tv.paragraphIndex - 1)
 }
 
 // updateProgress updates the progress label with the current paragraph and word offset.
 func (tv *TranslationView) updateProgress() {
-	tv.btnProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraph, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
-	prefs := Main.Preferences()
-	prefs.SetLastTranslationParagraph(tv.paragraph)
-	prefs.SetLastTranslationSource(tv.source)
+	tv.btnProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraphIndex, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
+	tv.project.LastSourceView = tv.sourceView
+	tv.project.LastParagraphIndex = tv.paragraphIndex
 }
 
 // updateText updates the text displayed in the translation view based on the current paragraph and language.
 func (tv *TranslationView) updateText() {
 	var p translation.Paragraph
 	var lang string
-	if tv.source {
+	if tv.sourceView {
 		lang = tv.project.Source.Language
-		p = tv.project.Source.Paragraphs[tv.paragraph]
+		p = tv.project.Source.Paragraphs[tv.paragraphIndex]
 	} else {
 		lang = tv.project.Target.Language
-		p = tv.project.Target.Paragraphs[tv.paragraph]
+		p = tv.project.Target.Paragraphs[tv.paragraphIndex]
 	}
 
 	if p.Text == "" {
@@ -180,7 +179,7 @@ func (tv *TranslationView) updateText() {
 		if err == nil && translator != nil {
 			startTime := translator.TranslationTime(p.ID)
 			if startTime != (time.Time{}) {
-				text = fmt.Sprintf("Translation in progress for paragraph %v %v", tv.paragraph, humanize.Time(startTime))
+				text = fmt.Sprintf("Translation in progress for paragraph %v %v", tv.paragraphIndex, humanize.Time(startTime))
 			}
 		}
 
@@ -204,11 +203,12 @@ func (tv *TranslationView) updateText() {
 	}
 
 	tv.updateProgress()
+
 }
 
 // onSourceChange handles the change of the source language toggle.
 func (tv *TranslationView) onSourceChange(checked bool) {
-	tv.source = checked
+	tv.sourceView = checked
 	tv.updateText()
 }
 
@@ -258,7 +258,7 @@ func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLan
 				// 	log.Printf("failed to save project: %v", err)
 				// }
 				// Update the text view if the current paragraph is being displayed
-				if tv.paragraph == paragraph {
+				if tv.paragraphIndex == paragraph {
 					tv.updateText()
 				}
 			})

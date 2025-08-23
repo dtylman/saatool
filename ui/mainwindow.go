@@ -32,7 +32,6 @@ type MainWindow struct {
 func (mw *MainWindow) OpenSaveDialog(callback func(fyne.URIWriteCloser, error), filter ...string) {
 	fg := dialog.NewFileSave(callback, mw.window)
 	fg.SetFilter(storage.NewExtensionFileFilter(filter))
-	fg.SetFileName(Main.Preferences().ActiveProject())
 	fg.Show()
 }
 
@@ -61,7 +60,7 @@ func NewMainWindow() error {
 
 // ShowAndRun creates the main application window and starts the Fyne event loop.
 func (mw *MainWindow) ShowAndRun() {
-
+	defer log.Println("exiting application")
 	mw.fyneApp = app.New()
 
 	err := config.LoadOptions()
@@ -75,7 +74,7 @@ func (mw *MainWindow) ShowAndRun() {
 	mw.window.Resize(fyne.NewSize(800, 600))
 	mw.window.SetMaster()
 
-	mw.onProjectTapped()
+	mw.onProjectsTapped()
 
 	mw.window.ShowAndRun()
 
@@ -93,7 +92,7 @@ func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 			mw.toolBar,
 
 			layout.NewResponsiveLayout(
-				layout.Responsive(widget.NewButtonWithIcon("Project", widgets.IconProject, mw.onProjectTapped), 0.33),
+				layout.Responsive(widget.NewButtonWithIcon("Projects", widgets.IconProject, mw.onProjectsTapped), 0.33),
 				layout.Responsive(widget.NewButtonWithIcon("Settings", widgets.IconSettings, mw.onSettingsTapped), 0.33),
 				layout.Responsive(widget.NewButtonWithIcon("Log", widgets.IconLog, mw.onLogTapped), 0.33),
 			),
@@ -131,18 +130,17 @@ func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func())
 
 func (mw *MainWindow) onSettingsTapped() {
 	mw.SetContent(
-		NewSettingsView(Main.Preferences()).View,
+		NewSettingsView().View,
 	)
 }
 
-func (mw *MainWindow) onProjectTapped() {
+func (mw *MainWindow) onProjectsTapped() {
 	mw.SetContent(
 		NewProjectsView().View,
 	)
 }
 
 func (mw *MainWindow) onLogTapped() {
-	mw.ClearActions()
 	mw.SetContent(
 		NewLogView().View,
 	)
@@ -154,10 +152,6 @@ func (mw *MainWindow) ShowMessage(message string) {
 
 func (mw *MainWindow) ShowError(message string) {
 	fyne.Do(dialog.NewError(errors.New(message), mw.window).Show)
-}
-
-func (mw *MainWindow) Preferences() *PreferencesDecorator {
-	return NewPreferencesDecorator(mw.fyneApp.Preferences())
 }
 
 func (mw *MainWindow) Translator() (*ai.Translator, error) {

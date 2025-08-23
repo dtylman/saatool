@@ -12,19 +12,16 @@ import (
 )
 
 type SettingsView struct {
-	preferences *PreferencesDecorator
-
 	entryDeepSeekAPIKey *widget.Entry
 	entryTextSize       *widget.Entry
 
 	View fyne.CanvasObject
 }
 
-func NewSettingsView(preferences *PreferencesDecorator) *SettingsView {
+func NewSettingsView() *SettingsView {
 	sv := &SettingsView{
 		entryDeepSeekAPIKey: widget.NewEntry(),
 		entryTextSize:       widget.NewEntry(),
-		preferences:         preferences,
 	}
 
 	sv.View = widget.NewForm(
