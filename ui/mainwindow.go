@@ -51,8 +51,8 @@ func NewMainWindow() error {
 	Main = &MainWindow{
 		fyneApp: app.New(),
 		window:  nil,
-		toolBar: container.NewHBox(),
-		header:  widget.NewLabel("SaaTool"),
+		toolBar: container.NewGridWrap(fyne.NewSize(100, 40)),
+		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v-%v", app.New().Metadata().Version, app.New().Metadata().Build)),
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -46,8 +47,8 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	Main.AddActionWidget(widget.NewCheck("Source", tv.onSourceChange))
 	Main.AddAction("Next", widgets.IconNext, tv.onNext)
 	Main.AddAction("Previous", widgets.IconPrev, tv.onPrevious)
+
 	Main.AddActionWidget(tv.btnProgress)
-	Main.AddActionWidget(widget.NewSeparator())
 
 	tv.txt.Direction = widgets.RightToLeft
 	appSize := config.Options.AppSize
@@ -96,17 +97,94 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 
 	tv.paragraphIndex = paragraph
 	if !tv.sourceView {
-		tv.translate(tv.paragraphIndex, tv.project.Source.Language, tv.project.Target.Language, false)
-		translateAhead := config.Options.TranslateAhead
-		for i := 1; i <= translateAhead; i++ {
-			if tv.paragraphIndex+i < len(tv.project.Target.Paragraphs) {
-				tv.translate(tv.paragraphIndex+i, tv.project.Source.Language, tv.project.Target.Language, false)
-			}
-		}
+		tv.invokeTranslation()
 	}
 
 	tv.updateText()
 	tv.updateProgress()
+}
+
+// invokeTranslation initiates the translation for the current and subsequent paragraphs based on the configuration.
+func (tv *TranslationView) invokeTranslation() {
+	err := tv.translateParagraph(tv.paragraphIndex)
+	if err != nil {
+		log.Printf("translation error (paragraph %v): %v", tv.paragraphIndex, err)
+	}
+	// Pre-translate ahead paragraphs
+	for i := 1; i <= config.Options.TranslateAhead; i++ {
+		idx := tv.paragraphIndex + i
+		if idx >= len(tv.project.Target.Paragraphs) {
+			break
+		}
+		err := tv.translateParagraph(idx)
+		if err != nil {
+			log.Printf("pre-translation error (paragraph %v): %v", idx, err)
+		}
+	}
+}
+
+// translateParagraph translates the specified paragraph from source to target language.
+func (tv *TranslationView) translateParagraph(paragraph int) error {
+
+	if paragraph < 0 || paragraph >= len(tv.project.Target.Paragraphs) {
+		return fmt.Errorf("paragraph %d out of range", paragraph)
+
+	}
+
+	sourceLang := tv.project.Source.Language
+	targetLang := tv.project.Target.Language
+
+	if sourceLang == "" || targetLang == "" {
+		return errors.New("source or target language not set")
+	}
+
+	log.Printf("translating paragraph %d from %v to %v", paragraph, sourceLang, targetLang)
+
+	target := tv.project.Target.Paragraphs[paragraph]
+
+	if target.Text != "" {
+		log.Printf("paragraph %d already translated", paragraph)
+		return nil
+	}
+
+	if paragraph < 0 || paragraph >= len(tv.project.Source.Paragraphs) {
+		log.Printf("source paragraph %d out of range", paragraph)
+		return errors.New("source paragraph out of range")
+	}
+
+	go func() {
+		ctx := context.Background()
+		translator, err := Main.Translator()
+		if err != nil {
+			log.Printf("failed to get translator: %v", err)
+			return
+		}
+		translated, err := translator.Translate(ctx, *tv.project, paragraph)
+		if err != nil {
+			log.Printf("translation error: %v", err)
+		}
+		log.Printf("translation result: %v", translated)
+
+		if translated != "" {
+			fyne.Do(func() {
+				tv.project.Target.Paragraphs[paragraph].Text = translated
+				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
+				log.Printf("updated target paragraph %d with translation", paragraph)
+
+				// activeProject := Main.Preferences().ActiveProject()
+				// err = tv.project.SaveTo(activeProject)
+				// if err != nil {
+				// 	log.Printf("failed to save project: %v", err)
+				// }
+				// Update the text view if the current paragraph is being displayed
+				if tv.paragraphIndex == paragraph {
+					tv.updateText()
+				}
+			})
+		} else {
+			log.Printf("no translation received for paragraph %d", paragraph)
+		}
+	}()
 }
 
 // onProgressTapped handles the action of navigating to a specific paragraph.
@@ -210,60 +288,4 @@ func (tv *TranslationView) updateText() {
 func (tv *TranslationView) onSourceChange(checked bool) {
 	tv.sourceView = checked
 	tv.updateText()
-}
-
-// translate translates the specified paragraph from source to target language.
-func (tv *TranslationView) translate(paragraph int, sourceLang string, targetLang string, force bool) {
-	log.Printf("translating paragraph %d from %v to %v (force=%v)", paragraph, sourceLang, targetLang, force)
-
-	if paragraph < 0 || paragraph >= len(tv.project.Target.Paragraphs) {
-		log.Printf("target paragraph %d out of range", paragraph)
-		return
-	}
-
-	target := tv.project.Target.Paragraphs[paragraph]
-
-	if target.Text != "" && !force {
-		log.Printf("paragraph %d already translated", paragraph)
-		return
-	}
-
-	if paragraph < 0 || paragraph >= len(tv.project.Source.Paragraphs) {
-		log.Printf("source paragraph %d out of range", paragraph)
-		return
-	}
-
-	go func() {
-		ctx := context.Background()
-		translator, err := Main.Translator()
-		if err != nil {
-			log.Printf("failed to get translator: %v", err)
-			return
-		}
-		translated, err := translator.Translate(ctx, *tv.project, paragraph)
-		if err != nil {
-			log.Printf("translation error: %v", err)
-		}
-		log.Printf("translation result: %v", translated)
-
-		if translated != "" {
-			fyne.Do(func() {
-				tv.project.Target.Paragraphs[paragraph].Text = translated
-				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
-				log.Printf("updated target paragraph %d with translation", paragraph)
-
-				// activeProject := Main.Preferences().ActiveProject()
-				// err = tv.project.SaveTo(activeProject)
-				// if err != nil {
-				// 	log.Printf("failed to save project: %v", err)
-				// }
-				// Update the text view if the current paragraph is being displayed
-				if tv.paragraphIndex == paragraph {
-					tv.updateText()
-				}
-			})
-		} else {
-			log.Printf("no translation received for paragraph %d", paragraph)
-		}
-	}()
 }
