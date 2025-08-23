@@ -236,6 +236,7 @@ func (p *Project) GetTitle() string {
 	return p.Title
 }
 
+// GetType returns the type of the project based on its genre.
 func (p *Project) GetType() string {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -243,4 +244,13 @@ func (p *Project) GetType() string {
 		return "article"
 	}
 	return "book"
+}
+
+// SetPosition sets the last viewed position in the project.
+func (p *Project) SetPosition(view bool, index int) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	p.LastSourceView = view
+	p.LastParagraphIndex = index
 }

@@ -116,6 +116,7 @@ func (tv *TranslationView) SetParagraph(paragraph int) {
 		tv.invokeTranslation()
 	}
 
+	tv.project.SetPosition(tv.sourceView, tv.paragraphIndex)
 	tv.updateText()
 	tv.updateProgress()
 }
@@ -183,6 +184,7 @@ func (tv *TranslationView) onTranslationCompleted(paragraphIndex int, translatio
 	if tv.paragraphIndex == paragraphIndex {
 		fyne.Do(func() {
 			tv.updateText()
+			tv.updateProgress()
 		})
 	}
 }
