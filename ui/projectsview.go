@@ -95,7 +95,7 @@ func (pl *ProjectsView) onExportTapped() {
 
 // onOpenTapped handles the Open action for the project.
 func (pl *ProjectsView) onImportTapped() {
-	Main.OpenFileDialog(pl.onProjectFileOpened, ".json")
+	Main.OpenFileDialog(pl.onProjectFileOpened, config.ProjectFileExt)
 }
 
 func (pl *ProjectsView) onProjectFileOpened(reader fyne.URIReadCloser, err error) {

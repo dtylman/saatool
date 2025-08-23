@@ -1,6 +1,7 @@
 package translation
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,9 +10,17 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+// ImportProject imports a project from a .saatool file and returns the project path
 func ImportProject(reader fyne.URIReadCloser) (string, error) {
 	log.Printf("importing project from %s", reader.URI().String())
-	data, err := io.ReadAll(reader)
+
+	zipReader, err := gzip.NewReader(reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to create gzip reader: %v", err)
+	}
+	defer zipReader.Close()
+
+	data, err := io.ReadAll(zipReader)
 	if err != nil {
 		return "", fmt.Errorf("failed to read project file: %v", err)
 	}
