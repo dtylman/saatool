@@ -37,3 +37,5 @@ cmd/saatool/__debug*
 cmd/saatooltool/saatooltool
 luciper.json
 cmd/saatooltool/luciper.epub
+cmd/saatooltool/projects/
+

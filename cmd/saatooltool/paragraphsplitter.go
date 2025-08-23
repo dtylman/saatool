@@ -34,6 +34,14 @@ func (ps *ParagraphSplitter) addParagraph(text string) {
 	ps.paragraphs = append(ps.paragraphs, text)
 }
 
+func isSentenceEnd(word string) bool {
+	if len(word) == 0 {
+		return false
+	}
+	last := word[len(word)-1]
+	return last == '.' || last == '!' || last == '?'
+}
+
 /*
 Split the given text into paragraphs based on the following rules:
 
@@ -50,15 +58,6 @@ New paragraphs should be created when:
 3. The number of words in the current paragraph exceeds 'maxWords' and the current word ends with a sentence-ending punctuation mark (., !, ?).
 4. The number of words in the current paragraph exceeds maxWordsTolerance, in this case, split at the last space before maxWords if possible, otherwise split at maxWords.
 */
-
-func isSentenceEnd(word string) bool {
-	if len(word) == 0 {
-		return false
-	}
-	last := word[len(word)-1]
-	return last == '.' || last == '!' || last == '?'
-}
-
 func (ps *ParagraphSplitter) Split(text string) []string {
 	// Preprocess: keep only ASCII letters, numbers, punctuation, and newlines
 	re := regexp.MustCompile(`[^\x20-\x7E\n]`)
@@ -84,9 +83,11 @@ func (ps *ParagraphSplitter) Split(text string) []string {
 			words = append(words, line)
 			continue
 		}
+
 		for _, w := range strings.Fields(line) {
 			words = append(words, w)
 		}
+		words[len(words)-1] += "\n" // mark end of line
 	}
 
 	ps.paragraphs = make([]string, 0)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
 
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/config"
@@ -79,6 +80,8 @@ func main() {
 	flag.StringVar(&config.Options.DeepSeekAPIKey, "key", "", "DeepSeek API key")
 	flag.BoolVar(&tt.getDetails, "details", false, "Get book details")
 	flag.Parse()
+
+	os.Setenv("FILESDIR", ".")
 
 	if tt.inFile == "" {
 		log.Fatal("Input file is required")

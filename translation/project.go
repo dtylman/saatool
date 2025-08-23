@@ -175,6 +175,10 @@ func (p *Project) Save() (string, error) {
 	fileName := filepath.Join(config.ProjectsDir(), p.Name)
 	log.Printf("writing project to %s", fileName)
 
+	if filepath.Ext(fileName) != config.ProjectFileExt {
+		fileName += config.ProjectFileExt
+	}
+
 	outFile, err := os.Create(fileName)
 	if err != nil {
 		return "", fmt.Errorf("failed to create project file: %v", err)

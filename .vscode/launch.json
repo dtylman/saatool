@@ -11,6 +11,18 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/saatool/main.go"
+        },
+        {
+            "name": "Launch SaaToolTool",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/saatooltool",
+            "args": [
+                "-details=false",
+                "-in=${workspaceFolder}/cmd/saatooltool/luciper.epub",
+                "-to=hebrew"
+            ]
         }
     ]
 }

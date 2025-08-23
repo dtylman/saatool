@@ -2,21 +2,19 @@ package main
 
 import (
 	"fmt"
-	"html"
 	"io"
 	"log"
 	"path"
 	"strings"
 
 	"github.com/dtylman/saatool/translation"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/taylorskalyo/goreader/epub"
+	"jaytaylor.com/html2text"
 )
 
 type EPubConverter struct {
 	rc       *epub.ReadCloser
 	Project  *translation.Project
-	bp       *bluemonday.Policy
 	maxWords int
 }
 
@@ -24,9 +22,9 @@ func NewEPubConverter() *EPubConverter {
 	return &EPubConverter{
 		rc:       nil,
 		Project:  nil,
-		bp:       bluemonday.StrictPolicy(),
 		maxWords: 200,
 	}
+
 }
 
 func (ec *EPubConverter) ConvertEPub(fileName string) error {
@@ -79,10 +77,16 @@ func (ec *EPubConverter) processItem(item epub.Itemref) error {
 		return fmt.Errorf("failed to read content of item %s: %w", item.ID, err)
 	}
 
-	text := string(content)
-	text = ec.bp.Sanitize(text)
-	text = html.UnescapeString(text)
-	text = strings.TrimSpace(text)
+	text, err := html2text.FromString(string(content), html2text.Options{PrettyTables: true, OmitLinks: false, TextOnly: false})
+	if err != nil {
+		return fmt.Errorf("failed to convert HTML to text for item %s: %w", item.ID, err)
+	}
+
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+
+	text = removeEmptyLines(text)
 
 	splitter := NewParagraphSplitter(ec.maxWords, ec.maxWords+20)
 	paragraphs := splitter.Split(text)
@@ -96,4 +100,15 @@ func (ec *EPubConverter) processItem(item epub.Itemref) error {
 		ec.Project.Source.Paragraphs = append(ec.Project.Source.Paragraphs, p)
 	}
 	return nil
+}
+
+func removeEmptyLines(text string) string {
+	lines := strings.Split(text, "\n")
+	nonEmptyLines := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			nonEmptyLines = append(nonEmptyLines, line)
+		}
+	}
+	return strings.Join(nonEmptyLines, "\n")
 }
