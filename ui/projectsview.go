@@ -129,7 +129,10 @@ func (ed *ProjectsView) onTranslateTapped() {
 		return
 	}
 
-	Main.SetContent(
-		NewTranslationView(ed.selectedProject).View,
-	)
+	tv, err := NewTranslationView(ed.selectedProject)
+	if err != nil {
+		Main.ShowError(fmt.Sprintf("Failed to create translation view: %v", err))
+		return
+	}
+	Main.SetContent(tv.View)
 }

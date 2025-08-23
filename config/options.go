@@ -16,6 +16,8 @@ var Options struct {
 	TranslateAhead int `json:"translate_ahead"`
 	//AppSize is the application size factor
 	AppSize int `json:"app_size"`
+	//TranslationContextParagraphs is the number of paragraphs to include in the translation context.
+	TranslationContextParagraphs int `json:"translation_context_paragraphs"`
 }
 
 func init() {
@@ -23,6 +25,7 @@ func init() {
 	Options.DeepSeekAPIKey = ""
 	Options.TranslateAhead = 3
 	Options.AppSize = 16
+	Options.TranslationContextParagraphs = 3
 }
 
 // LoadOptions loads options from the config file, if it exists. Otherwise, defaults are used.

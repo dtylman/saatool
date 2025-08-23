@@ -10,32 +10,36 @@ import (
 	"time"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
+	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
 
 type Translator struct {
-	client        *deepseek.Client
-	inTranslation map[string]time.Time
-	mutex         sync.Mutex
+	client                *deepseek.Client
+	project               *translation.Project
+	inTranslation         map[string]time.Time
+	mutex                 sync.Mutex
+	OnTranslationComplete func(paragraphIndex int, translation string)
 }
 
 // NewTranslator creates a new translator with deep seek api key
-func NewTranslator(apiKey string) (*Translator, error) {
-	client := deepseek.NewClient(apiKey)
+func NewTranslator(project *translation.Project) (*Translator, error) {
+	log.Printf("creating new translator for project: '%s'", project.GetTitle())
+
+	client := deepseek.NewClient(config.Options.DeepSeekAPIKey)
 	if client == nil {
 		return nil, fmt.Errorf("failed to create DeepSeek client")
 	}
 	return &Translator{client: client,
+		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
 	}, nil
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
-func (t *Translator) GetBookDetails(ctx context.Context, book *BookDetails) (*BookDetails, error) {
-	if book == nil {
-		return nil, errors.New("book details cannot be nil")
-	}
+func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
+	book := NewBookDetails(t.project)
 
 	bookRequest, err := json.Marshal(book)
 	if err != nil {
@@ -107,55 +111,86 @@ func (t *Translator) IsTranslationInProgress(paragraphID string) bool {
 	return exists
 }
 
-// Translate translates a paragraph from the source language to the target language using the DeepSeek API.
-func (t *Translator) Translate(ctx context.Context, project translation.Project, paragraphIndex int) (string, error) {
-	if t.client == nil {
-		return "", errors.New("failed to create DeepSeek client")
-	}
-
-	if paragraphIndex < 0 || paragraphIndex >= len(project.Source.Paragraphs) {
-		return "", fmt.Errorf("paragraph index %d out of range", paragraphIndex)
-	}
-
-	paragraphID := project.Source.Paragraphs[paragraphIndex].ID
-	log.Printf("translating paragraph %d with ID %s from %s to %s", paragraphIndex, paragraphID, project.Source.Language, project.Target.Language)
-
-	if t.IsTranslationInProgress(paragraphID) {
-		log.Printf("translation for paragraph %d is already in progress", paragraphIndex)
-		return "", fmt.Errorf("translation for paragraph %d is already in progress", paragraphIndex)
-	}
-	t.SetTranslationInProgress(paragraphID)
-	bookDetails, err := json.Marshal(NewBookDetails(&project))
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal book details: %v", err)
-	}
+func (t *Translator) newTranslationContext(paragraphIndex int, sourceParagraph *translation.Paragraph, sourceLang string, targetLang string) *TranslationContext {
 
 	translationContext := &TranslationContext{
 		Source: translation.Unit{
-			Language:   project.Source.Language,
+			Language:   sourceLang,
 			Paragraphs: make([]translation.Paragraph, 0),
 		},
 		Target: translation.Unit{
-			Language:   project.Target.Language,
+			Language:   targetLang,
 			Paragraphs: make([]translation.Paragraph, 0),
 		},
 	}
 
-	previousParagraphsCount := 3
+	previousParagraphsCount := config.Options.TranslationContextParagraphs
 	fromParagraphIndex := paragraphIndex - previousParagraphsCount
 	if fromParagraphIndex < 0 {
 		fromParagraphIndex = 0
 	}
 	for i := fromParagraphIndex; i <= paragraphIndex; i++ {
-		translationContext.Source.Paragraphs = append(translationContext.Source.Paragraphs, project.Source.Paragraphs[i])
-		translationContext.Target.Paragraphs = append(translationContext.Target.Paragraphs, project.Target.Paragraphs[i])
+		translationContext.Source.Paragraphs = append(translationContext.Source.Paragraphs, t.project.Source.Paragraphs[i])
+		translationContext.Target.Paragraphs = append(translationContext.Target.Paragraphs, t.project.Target.Paragraphs[i])
 	}
+	return translationContext
+}
+
+// Translate translates the specified paragraph and updates the project with the translation.
+func (t *Translator) Translate(ctx context.Context, paragraphIndex int) error {
+	log.Printf("translating paragraph %d", paragraphIndex)
+	translation, err := t.TranslateParagraph(ctx, paragraphIndex)
+	if err != nil {
+		return err
+	}
+	err = t.project.SetTranslation(paragraphIndex, translation)
+	if err != nil {
+		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
+	}
+
+	if t.OnTranslationComplete != nil {
+		t.OnTranslationComplete(paragraphIndex, translation)
+	}
+
+	_, err = t.project.Save()
+	if err != nil {
+		return fmt.Errorf("failed to save project after translating paragraph %d: %v", paragraphIndex, err)
+	}
+	return nil
+}
+
+// Translate translates a paragraph from the source language to the target language using the DeepSeek API and returns the translated text.
+func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int) (string, error) {
+	if t.client == nil {
+		return "", errors.New("DeepSeek client is not initialized")
+	}
+
+	sourceParagraph, err := t.project.GetSourceParagraph(paragraphIndex)
+	if err != nil {
+		return "", fmt.Errorf("failed to get source paragraph: %v", err)
+	}
+
+	sourceLang := t.project.GetSourceLanguage()
+	targetLang := t.project.GetTargetLanguage()
+	log.Printf("translating paragraph %d with ID %s from %s to %s", paragraphIndex, sourceParagraph.ID, sourceLang, targetLang)
+
+	if t.IsTranslationInProgress(sourceParagraph.ID) {
+		log.Printf("translation for paragraph %d is already in progress", paragraphIndex)
+		return "", fmt.Errorf("translation for paragraph %d is already in progress", paragraphIndex)
+	}
+	t.SetTranslationInProgress(sourceParagraph.ID)
+
+	translationContext := t.newTranslationContext(paragraphIndex, &sourceParagraph, sourceLang, targetLang)
 
 	data, err := json.Marshal(translationContext)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal translation context: %v", err)
 	}
 
+	bookDetails, err := json.Marshal(NewBookDetails(t.project))
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal book details: %v", err)
+	}
 	request := deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.ChatCompletionMessage{
@@ -166,7 +201,7 @@ func (t *Translator) Translate(ctx context.Context, project translation.Project,
 						"You now translating the text in the provided json: %v "+
 						"Make sure to translate the text accurately and preserve its meaning and the writer style.",
 					string(bookDetails),
-					project.Source.Language, project.Target.Language, project.Source.Language, project.Target.Language),
+					sourceLang, targetLang, sourceLang, targetLang),
 			},
 			{
 				Role: deepseek.ChatMessageRoleUser,
@@ -178,7 +213,7 @@ func (t *Translator) Translate(ctx context.Context, project translation.Project,
 		JSONMode: true,
 	}
 
-	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, project.Source.Language, project.Target.Language)
+	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, sourceLang, targetLang)
 	resp, err := t.client.CreateChatCompletion(ctx, &request)
 	if resp == nil {
 		return "", errors.New("received nil response from DeepSeek API")
@@ -202,7 +237,13 @@ func (t *Translator) Translate(ctx context.Context, project translation.Project,
 	}
 
 	log.Printf("response: %+v", translationResponse)
-	return translationResponse.Target.Paragraphs[paragraphIndex-fromParagraphIndex].Text, nil
+	translation := translationResponse.Target.Paragraphs[len(translationResponse.Target.Paragraphs)-1].Text
+	if translation == "" {
+		return "", errors.New("received empty translation from DeepSeek API")
+	}
+	log.Printf("translated paragraph %d: %s", paragraphIndex, translation)
+
+	return translation, nil
 }
 
 // TranslationTime returns the time taken for the translation of a paragraph.

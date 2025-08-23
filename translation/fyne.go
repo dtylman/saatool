@@ -22,7 +22,7 @@ func ImportProject(reader fyne.URIReadCloser) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal project file: %v", err)
 	}
 
-	project.Name = reader.URI().Name()
+	project.SetName(reader.URI().Name())
 	project.Normalize()
 
 	return project.Save()

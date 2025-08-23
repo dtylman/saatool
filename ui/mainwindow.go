@@ -153,15 +153,3 @@ func (mw *MainWindow) ShowMessage(message string) {
 func (mw *MainWindow) ShowError(message string) {
 	fyne.Do(dialog.NewError(errors.New(message), mw.window).Show)
 }
-
-func (mw *MainWindow) Translator() (*ai.Translator, error) {
-
-	if mw.translator == nil {
-		var err error
-		mw.translator, err = ai.NewTranslator(config.Options.DeepSeekAPIKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create translator: %v", err)
-		}
-	}
-	return mw.translator, nil
-}

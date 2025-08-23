@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
@@ -24,6 +25,7 @@ import (
 type TranslationView struct {
 	View           fyne.CanvasObject
 	project        *translation.Project
+	translator     *ai.Translator
 	txt            *widgets.BidiText
 	panelMain      *fyne.Container
 	btnProgress    *widget.Button
@@ -33,14 +35,23 @@ type TranslationView struct {
 
 }
 
-func NewTranslationView(project *translation.Project) *TranslationView {
+// NewTranslationView creates a new TranslationView for the given project.
+func NewTranslationView(project *translation.Project) (*TranslationView, error) {
+	translator, err := ai.NewTranslator(project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create translator: %v", err)
+	}
+
 	tv := &TranslationView{
 		project:        project,
 		txt:            widgets.NewBidiText(),
 		btnProgress:    widget.NewButton("", nil),
 		sourceView:     project.LastSourceView,
 		paragraphIndex: project.LastParagraphIndex,
+		translator:     translator,
 	}
+
+	tv.translator.OnTranslationComplete = tv.onTranslationCompleted
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.ClearActions()
@@ -63,7 +74,7 @@ func NewTranslationView(project *translation.Project) *TranslationView {
 	tv.updateProgress()
 	tv.updateText()
 
-	return tv
+	return tv, nil
 }
 
 // onMainPanelTapped handles tap events on the main panel of the translation view.
@@ -153,38 +164,22 @@ func (tv *TranslationView) translateParagraph(paragraph int) error {
 	}
 
 	go func() {
-		ctx := context.Background()
-		translator, err := Main.Translator()
+		err := tv.translator.Translate(context.Background(), paragraph)
 		if err != nil {
-			log.Printf("failed to get translator: %v", err)
-			return
-		}
-		translated, err := translator.Translate(ctx, *tv.project, paragraph)
-		if err != nil {
-			log.Printf("translation error: %v", err)
-		}
-		log.Printf("translation result: %v", translated)
-
-		if translated != "" {
-			fyne.Do(func() {
-				tv.project.Target.Paragraphs[paragraph].Text = translated
-				tv.project.Target.Paragraphs[paragraph].ID = tv.project.Source.Paragraphs[paragraph].ID
-				log.Printf("updated target paragraph %d with translation", paragraph)
-
-				// activeProject := Main.Preferences().ActiveProject()
-				// err = tv.project.SaveTo(activeProject)
-				// if err != nil {
-				// 	log.Printf("failed to save project: %v", err)
-				// }
-				// Update the text view if the current paragraph is being displayed
-				if tv.paragraphIndex == paragraph {
-					tv.updateText()
-				}
-			})
-		} else {
-			log.Printf("no translation received for paragraph %d", paragraph)
+			log.Printf("translation error (paragraph %v): %v", paragraph, err)
 		}
 	}()
+
+	return nil
+}
+
+// onTranslationCompleted is called when a translation is completed.
+func (tv *TranslationView) onTranslationCompleted(paragraphIndex int, translation string) {
+	if tv.paragraphIndex == paragraphIndex {
+		fyne.Do(func() {
+			tv.updateText()
+		})
+	}
 }
 
 // onProgressTapped handles the action of navigating to a specific paragraph.
@@ -253,9 +248,8 @@ func (tv *TranslationView) updateText() {
 	if p.Text == "" {
 		tv.panelMain.RemoveAll()
 		text := "No text available for this paragraph."
-		translator, err := Main.Translator()
-		if err == nil && translator != nil {
-			startTime := translator.TranslationTime(p.ID)
+		if tv.translator != nil {
+			startTime := tv.translator.TranslationTime(p.ID)
 			if startTime != (time.Time{}) {
 				text = fmt.Sprintf("Translation in progress for paragraph %v %v", tv.paragraphIndex, humanize.Time(startTime))
 			}

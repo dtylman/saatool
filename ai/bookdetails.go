@@ -13,6 +13,9 @@ type BookDetails struct {
 
 // NewBookDetails creates a new BookDetails instance from a translation.Project.
 func NewBookDetails(project *translation.Project) *BookDetails {
+	project.Lock()
+	defer project.Unlock()
+
 	return &BookDetails{
 		Title:          project.Title,
 		Author:         project.Author,

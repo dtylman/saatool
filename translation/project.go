@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/dtylman/saatool/config"
 )
@@ -72,6 +73,35 @@ type Project struct {
 	LastSourceView bool `json:"last_source_view"`
 	// LastParagraphIndex is the index of the last viewed paragraph.
 	LastParagraphIndex int `json:"last_paragraph_index"`
+	// mutex to protect concurrent access
+	mutex sync.Mutex
+}
+
+// GetTargetLanguage returns the target language of the project.
+func (p *Project) GetTargetLanguage() string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return p.Target.Language
+}
+
+// GetSourceLanguage returns the source language of the project.
+func (p *Project) GetSourceLanguage() string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return p.Source.Language
+}
+
+// GetSourceParagraph returns the source paragraph at the given index.
+func (p *Project) GetSourceParagraph(paragraphIndex int) (Paragraph, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if paragraphIndex < 0 || paragraphIndex >= len(p.Source.Paragraphs) {
+		return Paragraph{}, fmt.Errorf("paragraph index %d out of range", paragraphIndex)
+	}
+	return p.Source.Paragraphs[paragraphIndex], nil
 }
 
 // NewProject creates a new translation project with empty source and target units.
@@ -103,6 +133,13 @@ func LoadProject(path string) (*Project, error) {
 
 // Normalize ensures that the project has valid data.
 func (p *Project) Normalize() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	p.normalizeUnsafe()
+}
+
+func (p *Project) normalizeUnsafe() {
 	if len(p.Source.Paragraphs) > len(p.Target.Paragraphs) {
 		diff := len(p.Source.Paragraphs) - len(p.Target.Paragraphs)
 		log.Printf("normalizing project: adding %d paragraphs to target", diff)
@@ -119,13 +156,23 @@ func (p *Project) Normalize() {
 	}
 }
 
+// SetName sets the name of the project.
+func (p *Project) SetName(name string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.Name = name
+}
+
 // SetTranslation sets the translation for a specific paragraph in the project.
 func (p *Project) SetTranslation(paragraph int, translated string) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	log.Printf("setting translation for paragraph %d", paragraph)
 	if paragraph < 0 || paragraph >= len(p.Source.Paragraphs) {
 		return fmt.Errorf("paragraph index %d out of range", paragraph)
 	}
-	p.Normalize()
+	p.normalizeUnsafe()
 	p.Target.Paragraphs[paragraph].Text = translated
 	p.Target.Paragraphs[paragraph].ID = p.Source.Paragraphs[paragraph].ID
 	return nil
@@ -133,11 +180,17 @@ func (p *Project) SetTranslation(paragraph int, translated string) error {
 
 // IsEmpty checks if the project has no source or target paragraphs.
 func (p *Project) IsEmpty() bool {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	return len(p.Source.Paragraphs) == 0 && len(p.Target.Paragraphs) == 0
 }
 
 // Save saves the project to its file.
 func (p *Project) Save() (string, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	log.Printf("saving project '%v'", p.Name)
 	if p.Name == "" {
 		return "", fmt.Errorf("project name is empty")
@@ -153,4 +206,21 @@ func (p *Project) Save() (string, error) {
 		return "", fmt.Errorf("failed to write project file: %v", err)
 	}
 	return fileName, nil
+}
+
+// Lock locks the project for safe concurrent access.
+func (p *Project) Lock() {
+	p.mutex.Lock()
+}
+
+// Unlock unlocks the project.
+func (p *Project) Unlock() {
+	p.mutex.Unlock()
+}
+
+// GetTitle returns the title of the project.
+func (p *Project) GetTitle() string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	return p.Title
 }
