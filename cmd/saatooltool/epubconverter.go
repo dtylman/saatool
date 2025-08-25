@@ -12,21 +12,22 @@ import (
 	"jaytaylor.com/html2text"
 )
 
+// EPubConverter handles converting EPUB files to text and preparing them for translation
 type EPubConverter struct {
-	rc       *epub.ReadCloser
-	Project  *translation.Project
-	maxWords int
+	rc      *epub.ReadCloser
+	Project *translation.Project
 }
 
+// NewEPubConverter creates a new EPubConverter instance
 func NewEPubConverter() *EPubConverter {
 	return &EPubConverter{
-		rc:       nil,
-		Project:  nil,
-		maxWords: 200,
+		rc:      nil,
+		Project: nil,
 	}
 
 }
 
+// ConvertEPub converts the given EPUB file to text and prepares it for translation
 func (ec *EPubConverter) ConvertEPub(fileName string) error {
 	log.Printf("Converting EPUB file: %v", fileName)
 
@@ -88,7 +89,8 @@ func (ec *EPubConverter) processItem(item epub.Itemref) error {
 
 	text = removeEmptyLines(text)
 
-	splitter := NewParagraphSplitter(ec.maxWords, ec.maxWords+20)
+	splitter := NewParagraphSplitter()
+
 	paragraphs := splitter.Split(text)
 	for _, paragraph := range paragraphs {
 		if strings.TrimSpace(paragraph) == "" {

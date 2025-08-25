@@ -14,18 +14,15 @@ import (
 
 // ProjectsView list the translation projects
 type ProjectsView struct {
-	selectedProject    *translation.Project
-	lstProjects        *widget.List
-	lblSelectedProject *widget.Label
-	View               fyne.CanvasObject
-	projects           []config.ProjectFile
+	selectedProject *translation.Project
+	lstProjects     *widget.List
+	View            fyne.CanvasObject
+	projects        []config.ProjectFile
 }
 
 // NewProjectView creates a new ProjectEditor for the given project.
 func NewProjectsView() *ProjectsView {
-	pv := &ProjectsView{
-		lblSelectedProject: widget.NewLabel("No project selected"),
-	}
+	pv := &ProjectsView{}
 
 	Main.ClearActions()
 	Main.AddAction("Import", widgets.IconOpen, pv.onImportTapped)
@@ -37,9 +34,19 @@ func NewProjectsView() *ProjectsView {
 
 	pv.listProjects()
 
-	pv.View = container.NewAdaptiveGrid(1, pv.lstProjects, pv.lblSelectedProject)
-
 	return pv
+}
+
+func (pl *ProjectsView) setView() {
+	if pl.lstProjects.Length() == 0 {
+		pl.View = container.NewVBox(
+			widget.NewLabel("No projects found."),
+			widget.NewLabel("Use the Import button to add a project."),
+		)
+		return
+	} else {
+		pl.View = container.NewStack(pl.lstProjects)
+	}
 }
 
 func (pl *ProjectsView) listProjects() {
@@ -50,6 +57,7 @@ func (pl *ProjectsView) listProjects() {
 		return
 	}
 	pl.lstProjects.Refresh()
+	pl.setView()
 }
 
 func (pl *ProjectsView) onProjectSelected(id widget.ListItemID) {
@@ -58,7 +66,7 @@ func (pl *ProjectsView) onProjectSelected(id widget.ListItemID) {
 	}
 
 	projectFile := pl.projects[id]
-	pl.lblSelectedProject.SetText(fmt.Sprintf("Selected Project: %s", projectFile.Name))
+	//pl.lblSelectedProject.SetText(fmt.Sprintf("Selected Project: %s", projectFile.Name))
 
 	project, err := translation.LoadProject(projectFile.Path)
 	if err != nil {
@@ -74,14 +82,27 @@ func (pl *ProjectsView) lstProjectsLen() int {
 }
 
 func (pl *ProjectsView) lstProjectsCreateItem() fyne.CanvasObject {
-	return widget.NewLabel("Project")
+	return widgets.NewListItem(widget.NewIcon(widgets.IconProject), "Project", "Test Subtitle", nil, nil)
+	// return widget.NewLabel("Project")
 }
 
 func (pl *ProjectsView) lstProjectsUpdateItem(id widget.ListItemID, obj fyne.CanvasObject) {
-	label := obj.(*widget.Label)
-	if id < len(pl.projects) {
-		label.SetText(pl.projects[id].Name)
+	item := obj.(*widgets.ListItem)
+	if pl.selectedProject != nil {
+		if pl.selectedProject.Name == pl.projects[id].Name {
+			pl.lstProjects.Select(id)
+			item.Title = fmt.Sprintf("%s (%s)", pl.projects[id].Name, pl.selectedProject.Title)
+			item.Refresh()
+			return
+		}
 	}
+	if id < len(pl.projects) {
+		item.Title = pl.projects[id].Name
+		item.Subtitle = pl.projects[id].Path
+		item.Refresh()
+
+	}
+
 }
 
 // onExportTapped handles the Export action for the project.
@@ -119,7 +140,7 @@ func (pl *ProjectsView) onProjectFileOpened(reader fyne.URIReadCloser, err error
 // SetProject updates the ProjectCard with the given project details.
 func (ed *ProjectsView) setProject(project *translation.Project) {
 	ed.selectedProject = project
-	ed.lblSelectedProject.SetText(fmt.Sprintf("Selected Project: %s", project.Name))
+	//ed.lblSelectedProject.SetText(fmt.Sprintf("Selected Project: %s", project.Name))
 	ed.View.Refresh()
 }
 

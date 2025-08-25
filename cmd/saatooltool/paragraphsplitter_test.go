@@ -9,7 +9,7 @@ import (
 )
 
 func TestParagraphSplitter_Split(t *testing.T) {
-	ps := NewParagraphSplitter(100, 120)
+	ps := NewParagraphSplitter()
 	text := "one\ntwo\nthree\nfour.\n\nfive\nsix\nseven\nine."
 	paragraphs := ps.Split(text)
 	assert.Len(t, paragraphs, 2)

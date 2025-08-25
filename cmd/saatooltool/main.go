@@ -11,33 +11,48 @@ import (
 	"github.com/dtylman/saatool/translation"
 )
 
+// ToolToolOptions holds the command line options for the ToolTool
+var ToolToolOptions struct {
+	//InFile is the input EPUB file
+	InFile string
+	//OutFile is the output file
+	OutFile string
+	//MaxWords is the maximum words per paragraph for translation
+	MaxWords int
+	//MaxWordsTolerance is the maximum words tolerance per paragraph for translation (used to split long paragraphs)
+	MaxWordsTolerance int
+	//FromLang is the source language
+	FromLang string
+	//ToLang is the target language
+	ToLang string
+	//GetDetails indicates whether to get book details
+	GetDetails bool
+	//StripToAscii indicates whether to strip text to ASCII only
+	StripToAscii bool
+}
+
+// ToolTool is a command line tool for converting EPUB files and getting book details.
 type ToolTool struct {
-	ec         *EPubConverter
-	inFile     string
-	outFile    string
-	maxWords   int
-	fromLang   string
-	toLang     string
-	getDetails bool
+	ec *EPubConverter
 }
 
 func (tt *ToolTool) Run(ctx context.Context) error {
-	log.Printf("converting epub: '%s'", tt.inFile)
+	log.Printf("converting epub: '%s'", ToolToolOptions.InFile)
 	tt.ec = NewEPubConverter()
-	err := tt.ec.ConvertEPub(tt.inFile)
+	err := tt.ec.ConvertEPub(ToolToolOptions.InFile)
 	if err != nil {
 		return err
 	}
 
-	if tt.getDetails {
+	if ToolToolOptions.GetDetails {
 		err = tt.getBookDetails(ctx, tt.ec.Project)
 		if err != nil {
 			return err
 		}
 	}
 
-	tt.ec.Project.Source.Language = tt.fromLang
-	tt.ec.Project.Target.Language = tt.toLang
+	tt.ec.Project.Source.Language = ToolToolOptions.FromLang
+	tt.ec.Project.Target.Language = ToolToolOptions.ToLang
 
 	fileName, err := tt.ec.Project.Save()
 	if err != nil {
@@ -73,21 +88,23 @@ func (tt *ToolTool) getBookDetails(ctx context.Context, project *translation.Pro
 func main() {
 
 	tt := &ToolTool{}
-	flag.StringVar(&tt.inFile, "in", "", "Input EPUB file")
-	flag.IntVar(&tt.maxWords, "maxwords", 200, "Maximum words per paragraph")
-	flag.StringVar(&tt.fromLang, "from", "english", "Source language")
-	flag.StringVar(&tt.toLang, "to", "hebrew", "Target language")
+	flag.StringVar(&ToolToolOptions.InFile, "in", "", "Input EPUB file")
+	flag.IntVar(&ToolToolOptions.MaxWords, "maxwords", 200, "Maximum words per paragraph")
+	flag.IntVar(&ToolToolOptions.MaxWordsTolerance, "maxtolerance", 300, "Maximum words tolerance per paragraph")
+	flag.BoolVar(&ToolToolOptions.StripToAscii, "ascii", false, "Strip text to ASCII only")
+	flag.StringVar(&ToolToolOptions.FromLang, "from", "english", "Source language")
+	flag.StringVar(&ToolToolOptions.ToLang, "to", "", "Target language")
 	flag.StringVar(&config.Options.DeepSeekAPIKey, "key", "", "DeepSeek API key")
-	flag.BoolVar(&tt.getDetails, "details", false, "Get book details")
+	flag.BoolVar(&ToolToolOptions.GetDetails, "details", false, "Get book details")
 	flag.Parse()
 
 	os.Setenv("FILESDIR", ".")
 
-	if tt.inFile == "" {
+	if ToolToolOptions.InFile == "" {
 		log.Fatal("Input file is required")
 	}
 
-	if tt.toLang == "" {
+	if ToolToolOptions.ToLang == "" {
 		log.Fatal("Target language is required")
 	}
 

@@ -6,24 +6,16 @@ import (
 	"unicode"
 )
 
+// ParagraphSplitter splits text into paragraphs based on specified rules.
 type ParagraphSplitter struct {
-	// Maximum number of words per paragraph
-	maxWords int
-	// Tolerance for maximum words before forcing a split
-	maxWordsTolerance int
 	// Accumulated paragraphs
 	paragraphs []string
 }
 
 // NewParagraphSplitter creates a new ParagraphSplitter with the specified maximum words per paragraph.
-func NewParagraphSplitter(maxWords int, maxWordsTolerance int) *ParagraphSplitter {
-	if maxWordsTolerance < maxWords {
-		maxWordsTolerance = maxWords + 20 // default tolerance
-	}
+func NewParagraphSplitter() *ParagraphSplitter {
 	return &ParagraphSplitter{
-		maxWords:          maxWords,
-		maxWordsTolerance: maxWordsTolerance,
-		paragraphs:        make([]string, 0),
+		paragraphs: make([]string, 0),
 	}
 }
 
@@ -59,9 +51,12 @@ New paragraphs should be created when:
 4. The number of words in the current paragraph exceeds maxWordsTolerance, in this case, split at the last space before maxWords if possible, otherwise split at maxWords.
 */
 func (ps *ParagraphSplitter) Split(text string) []string {
-	// Preprocess: keep only ASCII letters, numbers, punctuation, and newlines
-	re := regexp.MustCompile(`[^\x20-\x7E\n]`)
-	clean := re.ReplaceAllString(text, "")
+	var clean = text
+	if ToolToolOptions.StripToAscii {
+		// Preprocess: keep only ASCII letters, numbers, punctuation, and newlines
+		re := regexp.MustCompile(`[^\x20-\x7E\n]`)
+		clean = re.ReplaceAllString(text, "")
+	}
 	// Normalize whitespace except newlines
 	clean = regexp.MustCompile(`[ \t\r\f\v]+`).ReplaceAllStringFunc(clean, func(s string) string {
 		if strings.Contains(s, "\n") {
@@ -119,7 +114,7 @@ func (ps *ParagraphSplitter) Split(text string) []string {
 		wordCount++
 
 		// 3. Split if wordCount > maxWords and ends with sentence-ending punctuation
-		if wordCount > ps.maxWords && isSentenceEnd(word) {
+		if wordCount > ToolToolOptions.MaxWords && isSentenceEnd(word) {
 			ps.addParagraph(strings.Join(currentParagraph, " "))
 			currentParagraph = nil
 			wordCount = 0
@@ -127,19 +122,19 @@ func (ps *ParagraphSplitter) Split(text string) []string {
 		}
 
 		// 4. Split if wordCount > maxWordsTolerance
-		if wordCount > ps.maxWordsTolerance {
+		if wordCount > ToolToolOptions.MaxWordsTolerance {
 			// Try to split at last space before maxWords
 			splitIdx := -1
 			count := 0
 			for j := range currentParagraph {
 				count++
-				if count == ps.maxWords {
+				if count == ToolToolOptions.MaxWords {
 					splitIdx = j
 					break
 				}
 			}
 			if splitIdx == -1 {
-				splitIdx = ps.maxWords
+				splitIdx = ToolToolOptions.MaxWords
 			}
 			ps.addParagraph(strings.Join(currentParagraph[:splitIdx], " "))
 			currentParagraph = currentParagraph[splitIdx:]
