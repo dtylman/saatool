@@ -324,7 +324,7 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 		return "", fmt.Errorf("failed to marshal book details: %v", err)
 	}
 
-	systemPrompt, err := GetPrompt(`You are the perfect translator from '{{.source_lang}}' to '{{.target_lang}}'. You are native speaker of both '{{.source_lang}}' and '{{.target_lang}}'. Your task is to translate '{{.book_title}}', which is a {{.book_type}}. The translation is done paragraph by paragraph. Make sure to translate the text accurately and preserve its meaning and the writer style. Translate to contemporary '{{.target_lang}}' and make sure it is easy to comprehend. Make an effort to have the translation as native as possible to the the target language without losing its essence. Here are some details about the book: {{.book_details}}`,
+	systemPrompt, err := GetPrompt(`You are a professional translator from '{{.source_lang}}' to '{{.target_lang}}' and a native speaker of both '{{.source_lang}}' and '{{.target_lang}}'. Your task is to translate '{{.book_title}}', which is a {{.book_type}}. The translation is done paragraph by paragraph. Make sure to translate the text accurately and preserve its meaning and the writer style. The translation should be: accurate; preserve the meaning and style of the original text; be free of grammatical errors; use natural and fluent {{.target_lang}} language; be culturally precise for contemporary {{.target_lang}} readers. Here are some details about the book: {{.book_details}}`,
 		map[string]string{
 			"source_lang":  sourceLang,
 			"target_lang":  targetLang,
