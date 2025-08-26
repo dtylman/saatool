@@ -82,26 +82,27 @@ func (pl *ProjectsView) lstProjectsLen() int {
 }
 
 func (pl *ProjectsView) lstProjectsCreateItem() fyne.CanvasObject {
-	return widgets.NewListItem(widget.NewIcon(widgets.IconProject), "Project", "Test Subtitle", nil, nil)
-	// return widget.NewLabel("Project")
+	return widgets.NewListItem(widget.NewIcon(widgets.IconProject), "Project", "", nil)
 }
 
 func (pl *ProjectsView) lstProjectsUpdateItem(id widget.ListItemID, obj fyne.CanvasObject) {
 	item := obj.(*widgets.ListItem)
-	if pl.selectedProject != nil {
-		if pl.selectedProject.Name == pl.projects[id].Name {
-			pl.lstProjects.Select(id)
-			item.Title = fmt.Sprintf("%s (%s)", pl.projects[id].Name, pl.selectedProject.Title)
-			item.Refresh()
-			return
-		}
+	if id < 0 || id >= len(pl.projects) {
+		log.Printf("invalid project id: %d", id)
+		return
 	}
-	if id < len(pl.projects) {
-		item.Title = pl.projects[id].Name
-		item.Subtitle = pl.projects[id].Path
-		item.Refresh()
+	title := pl.projects[id].Name
+	subTitle := ""
+	if pl.selectedProject != nil && pl.selectedProject.Name == pl.projects[id].Name {
+		subTitle = pl.selectedProject.Title
+		item.SetSelected(true)
+	} else {
+		item.SetSelected(false)
+	}
 
-	}
+	log.Printf("updating project list item %d: %s %v", id, title, subTitle)
+	item.SetTitle(title)
+	item.SetSubtitle(subTitle)
 
 }
 

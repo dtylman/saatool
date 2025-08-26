@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -11,37 +13,52 @@ import (
 // ListItem is a custom widget similar to Flutter's ListTile.
 type ListItem struct {
 	widget.BaseWidget
-	Leading  fyne.CanvasObject
-	Title    string
-	Subtitle string
-	Trailing fyne.CanvasObject
-	OnTapped func()
+	Leading     fyne.CanvasObject
+	txtTitle    *canvas.Text
+	txtSubTitle *canvas.Text
+	Trailing    fyne.CanvasObject
+	selected    bool
 }
 
 // NewListItem creates a new ListItem.
-func NewListItem(leading fyne.CanvasObject, title, subtitle string, trailing fyne.CanvasObject, onTapped func()) *ListItem {
+func NewListItem(leading fyne.CanvasObject, title, subtitle string, trailing fyne.CanvasObject) *ListItem {
 	item := &ListItem{
-		Leading:  leading,
-		Title:    title,
-		Subtitle: subtitle,
-		Trailing: trailing,
-		OnTapped: onTapped,
+		Leading:     leading,
+		txtTitle:    canvas.NewText(title, theme.Color(theme.ColorNameForeground)),
+		txtSubTitle: canvas.NewText(subtitle, theme.Color(theme.ColorNameForeground)),
+		Trailing:    trailing,
+		selected:    false,
 	}
+	item.txtTitle.TextStyle = fyne.TextStyle{Bold: true}
+	if subtitle != "" {
+		item.txtSubTitle = canvas.NewText(subtitle, theme.Color(theme.ColorNameForeground))
+	}
+
 	item.ExtendBaseWidget(item)
 	return item
 }
 
+func (i *ListItem) SetSelected(selected bool) {
+	i.selected = selected
+	i.Refresh()
+}
+
+func (i *ListItem) SetTitle(title string) {
+	i.txtTitle.Text = title
+	i.txtTitle.Refresh()
+}
+
+func (i *ListItem) SetSubtitle(subtitle string) {
+	i.txtSubTitle.Text = subtitle
+	i.txtSubTitle.Refresh()
+}
+
 func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
-	title := canvas.NewText(i.Title, theme.ForegroundColor())
-	title.TextStyle = fyne.TextStyle{Bold: true}
-	var subtitle *canvas.Text
-	if i.Subtitle != "" {
-		subtitle = canvas.NewText(i.Subtitle, theme.DisabledTextColor())
-	}
-	texts := []fyne.CanvasObject{title}
-	if subtitle != nil {
-		texts = append(texts, subtitle)
-	}
+	texts := []fyne.CanvasObject{i.txtTitle}
+	// if i.txtSubTitle.Text != "" {
+	texts = append(texts, i.txtSubTitle)
+	// }
+	fmt.Println("texts:", texts)
 	textCol := container.NewVBox(texts...)
 
 	objects := []fyne.CanvasObject{}
@@ -54,7 +71,10 @@ func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
 	}
 
 	row := container.NewHBox(objects...)
-	bg := canvas.NewRectangle(theme.BackgroundColor())
+	bg := canvas.NewRectangle(theme.Color(theme.ColorNameBackground))
+	if i.selected {
+		bg.FillColor = theme.Color(theme.ColorNameSelection)
+	}
 	return &listItemRenderer{
 		item:    i,
 		bg:      bg,
@@ -63,13 +83,14 @@ func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
 	}
 }
 
-func (i *ListItem) Tapped(_ *fyne.PointEvent) {
-	if i.OnTapped != nil {
-		i.OnTapped()
-	}
-}
+// func (i *ListItem) Tapped(_ *fyne.PointEvent) {
+// 	log.Println("ListItem tapped")
+// 	if i.OnTapped != nil {
+// 		i.OnTapped()
+// 	}
+// }
 
-func (i *ListItem) TappedSecondary(_ *fyne.PointEvent) {}
+// func (i *ListItem) TappedSecondary(_ *fyne.PointEvent) {}
 
 type listItemRenderer struct {
 	item    *ListItem
@@ -90,7 +111,8 @@ func (r *listItemRenderer) MinSize() fyne.Size {
 }
 
 func (r *listItemRenderer) Refresh() {
-	r.bg.FillColor = theme.BackgroundColor()
+
+	r.bg.FillColor = theme.Color(theme.ColorNameBackground)
 	canvas.Refresh(r.bg)
 	r.row.Refresh()
 }

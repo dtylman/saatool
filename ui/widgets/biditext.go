@@ -181,17 +181,6 @@ func (b *BidiText) CreateRenderer() fyne.WidgetRenderer {
 	return r
 }
 
-func reversePunctuation(s string) string {
-	punctuations := []string{".", ",", "!", "?", ":"}
-	for _, p := range punctuations {
-		if strings.HasSuffix(s, p) {
-			log.Printf("Reversing punctuation in: %s", s)
-			return p + strings.TrimSuffix(s, p)
-		}
-	}
-	return s
-}
-
 type bidiTextRenderer struct {
 	parent  *BidiText
 	rect    *canvas.Rectangle
