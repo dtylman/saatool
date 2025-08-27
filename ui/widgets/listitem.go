@@ -1,8 +1,6 @@
 package widgets
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -54,11 +52,8 @@ func (i *ListItem) SetSubtitle(subtitle string) {
 }
 
 func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
-	texts := []fyne.CanvasObject{i.txtTitle}
-	// if i.txtSubTitle.Text != "" {
-	texts = append(texts, i.txtSubTitle)
-	// }
-	fmt.Println("texts:", texts)
+	texts := []fyne.CanvasObject{i.txtTitle, i.txtSubTitle}
+
 	textCol := container.NewVBox(texts...)
 
 	objects := []fyne.CanvasObject{}
