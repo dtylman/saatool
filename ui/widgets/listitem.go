@@ -111,8 +111,11 @@ func (r *listItemRenderer) MinSize() fyne.Size {
 }
 
 func (r *listItemRenderer) Refresh() {
-
-	r.bg.FillColor = theme.Color(theme.ColorNameBackground)
+	if r.item.selected {
+		r.bg.FillColor = theme.Color(theme.ColorNameSelection)
+	} else {
+		r.bg.FillColor = theme.Color(theme.ColorNameBackground)
+	}
 	canvas.Refresh(r.bg)
 	r.row.Refresh()
 }
