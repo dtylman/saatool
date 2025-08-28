@@ -10,7 +10,7 @@ import (
 
 // LogView represents the log view in the application.
 type LogView struct {
-	View     fyne.CanvasObject
+	view     fyne.CanvasObject
 	table    *widget.Table
 	messages []string
 }
@@ -23,14 +23,24 @@ func NewLogView() *LogView {
 		lv.len, lv.create, lv.update,
 	)
 
-	lv.View = lv.table
+	lv.view = lv.table
 
-	lv.loadMessages()
-
-	Main.ClearActions()
 	Main.AddAction("Refresh", widgets.IconReload, lv.refreshTapped)
 
 	return lv
+}
+
+func (lv *LogView) View() fyne.CanvasObject {
+	return lv.view
+}
+
+func (lv *LogView) Close() {
+	// nothing to do
+}
+
+func (lv *LogView) Load() {
+	lv.loadMessages()
+	lv.table.Refresh()
 }
 
 func (lv *LogView) len() (int, int) {

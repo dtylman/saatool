@@ -73,10 +73,6 @@ func (b *BidiText) SetWords(words []string) {
 	b.Offset = 0
 	b.Length = len(words)
 	if b.Direction == RightToLeft {
-		// slices.Reverse(b.Words)
-		// for i := range words {
-		// 	words[i] = reversePunctuation(words[i])
-		// }
 	}
 	b.Refresh()
 }

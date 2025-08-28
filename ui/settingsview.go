@@ -15,7 +15,7 @@ type SettingsView struct {
 	entryDeepSeekAPIKey *widget.Entry
 	entryTextSize       *widget.Entry
 
-	View fyne.CanvasObject
+	view fyne.CanvasObject
 }
 
 func NewSettingsView() *SettingsView {
@@ -24,7 +24,7 @@ func NewSettingsView() *SettingsView {
 		entryTextSize:       widget.NewEntry(),
 	}
 
-	sv.View = widget.NewForm(
+	sv.view = widget.NewForm(
 		widget.NewFormItem("DeepSeek API Key", sv.entryDeepSeekAPIKey),
 		widget.NewFormItem("App Sizes Factor", sv.entryTextSize),
 	)
@@ -37,6 +37,18 @@ func NewSettingsView() *SettingsView {
 
 	return sv
 
+}
+
+func (sv *SettingsView) View() fyne.CanvasObject {
+	return sv.view
+}
+
+func (sv *SettingsView) Close() {
+	// nothing to do
+}
+
+func (sv *SettingsView) Load() {
+	// nothing to do
 }
 
 func (sv *SettingsView) onSaveTapped() {

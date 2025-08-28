@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -49,6 +50,10 @@ func (tt *ToolTool) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if ToolToolOptions.FromLang == "" || ToolToolOptions.ToLang == "" {
+		return errors.New("source and target languages must be specified")
 	}
 
 	tt.ec.Project.Source.Language = ToolToolOptions.FromLang

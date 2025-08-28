@@ -28,12 +28,23 @@ func NewListItem(leading fyne.CanvasObject, title, subtitle string, trailing fyn
 		selected:    false,
 	}
 	item.txtTitle.TextStyle = fyne.TextStyle{Bold: true}
-	if subtitle != "" {
-		item.txtSubTitle = canvas.NewText(subtitle, theme.Color(theme.ColorNameForeground))
+	item.txtTitle.TextSize = theme.Size(theme.SizeNameText)
+
+	item.txtSubTitle = canvas.NewText(subtitle, theme.Color(theme.ColorNameForeground))
+	item.txtSubTitle.TextStyle = fyne.TextStyle{Italic: true}
+	subtitleSize := theme.Size(theme.SizeNameText) - 4
+	if subtitleSize < 0 {
+		subtitleSize = 1
 	}
+	item.txtSubTitle.TextSize = subtitleSize
 
 	item.ExtendBaseWidget(item)
 	return item
+}
+
+func (i *ListItem) SetTrailing(trailing fyne.CanvasObject) {
+	i.Trailing = trailing
+	i.Refresh()
 }
 
 func (i *ListItem) SetSelected(selected bool) {

@@ -21,13 +21,13 @@ type Character struct {
 	// Name is the name of the character.
 	Name string `json:"name"`
 	// Gender is the gender of the character
-	Gender string `json:"gender"`
+	Gender string `json:"gender,omitempty"`
 	// Age is the age of the character.
-	Age int `json:"age"`
+	Age int `json:"age,omitempty"`
 	// Role is the role of the character in the story.
-	Role string `json:"role"`
+	Role string `json:"role,omitempty"`
 	// Description is a brief description of the character.
-	Description string `json:"description"`
+	Description string `json:"description,omitempty"`
 }
 
 // Paragraph represents a single paragraph in a translation project.

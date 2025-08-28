@@ -20,10 +20,18 @@ import (
 // Main is the global instance of the main application window.
 var Main *MainWindow
 
+// WindowContent is an interface for views that can be shown in the main area
+type WindowContent interface {
+	View() fyne.CanvasObject
+	Close()
+	Load()
+}
+
 // MainWindow represents the main application window.
 type MainWindow struct {
 	fyneApp    fyne.App
 	window     fyne.Window
+	content    WindowContent
 	toolBar    *fyne.Container
 	header     *widget.Label
 	translator *ai.Translator
@@ -81,7 +89,18 @@ func (mw *MainWindow) ShowAndRun() {
 }
 
 // SetContent sets the content of the main window.
-func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
+func (mw *MainWindow) SetContent(content WindowContent) {
+	if mw.content != nil {
+		mw.content.Close()
+	}
+	mw.content = content
+	mw.Refresh()
+}
+
+func (mw *MainWindow) Refresh() {
+	if mw.content == nil {
+		return
+	}
 	fyne.Do(func() {
 		panelTop := container.NewHBox(
 			widget.NewIcon(widgets.IconLogo),
@@ -104,12 +123,11 @@ func (mw *MainWindow) SetContent(content fyne.CanvasObject) {
 				panelBottom,
 				nil,
 				nil,
-				container.NewVScroll(content),
+				container.NewVScroll(mw.content.View()),
 			),
 		)
 
-		content.Show()
-		content.Refresh()
+		mw.content.Load()
 	})
 }
 
@@ -129,21 +147,15 @@ func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func())
 }
 
 func (mw *MainWindow) onSettingsTapped() {
-	mw.SetContent(
-		NewSettingsView().View,
-	)
+	mw.SetContent(NewSettingsView())
 }
 
 func (mw *MainWindow) onProjectsTapped() {
-	mw.SetContent(
-		NewProjectsView().View,
-	)
+	mw.SetContent(NewProjectsView())
 }
 
 func (mw *MainWindow) onLogTapped() {
-	mw.SetContent(
-		NewLogView().View,
-	)
+	mw.SetContent(NewLogView())
 }
 
 func (mw *MainWindow) ShowMessage(message string) {

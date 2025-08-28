@@ -78,7 +78,7 @@ func (ec *EPubConverter) processItem(item epub.Itemref) error {
 		return fmt.Errorf("failed to read content of item %s: %w", item.ID, err)
 	}
 
-	text, err := html2text.FromString(string(content), html2text.Options{PrettyTables: true, OmitLinks: false, TextOnly: false})
+	text, err := html2text.FromString(string(content), html2text.Options{PrettyTables: true, OmitLinks: true, TextOnly: false})
 	if err != nil {
 		return fmt.Errorf("failed to convert HTML to text for item %s: %w", item.ID, err)
 	}
