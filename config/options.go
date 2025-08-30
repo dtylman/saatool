@@ -18,14 +18,17 @@ var Options struct {
 	AppSize int `json:"app_size"`
 	//TranslationContextParagraphs is the number of paragraphs to include in the translation context.
 	TranslationContextParagraphs int `json:"translation_context_paragraphs"`
+	//AutoProofread proofreads translated paragraphs immediately after translation
+	AutoProofread bool `json:"auto_proofread"`
 }
 
 func init() {
 	// Set default options
 	Options.DeepSeekAPIKey = ""
-	Options.TranslateAhead = 3
+	Options.TranslateAhead = 6
 	Options.AppSize = 16
 	Options.TranslationContextParagraphs = 3
+	Options.AutoProofread = true
 }
 
 // LoadOptions loads options from the config file, if it exists. Otherwise, defaults are used.

@@ -14,6 +14,14 @@ import (
 	"github.com/dtylman/saatool/translation"
 )
 
+// TranslationDocument represents a specific document structure for translation requests and responses.
+type TranslationDocument struct {
+	// Source is the source language unit containing paragraphs to be translated.
+	Source translation.Unit `json:"source"`
+	// Target is the target language unit where the translated paragraphs will be stored.
+	Target translation.Unit `json:"target"`
+}
+
 // Translator is responsible for translating text using DeepSeek API
 type Translator struct {
 	client        *deepseek.Client
@@ -94,27 +102,16 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 	return &bookResponse, nil
 }
 
-// TranslationDocument represents a specific document structure for translation requests and responses.
-type TranslationDocument struct {
-	// Source is the source language unit containing paragraphs to be translated.
-	Source translation.Unit `json:"source"`
-	// Target is the target language unit where the translated paragraphs will be stored.
-	Target translation.Unit `json:"target"`
-}
-
-// SetTranslationInProgress sets the translation in progress for a given paragraph ID.
-func (t *Translator) SetTranslationInProgress(paragraphID string) {
+// IsTranslationInProgress checks if a translation is in progress for a given paragraph ID.
+func (t *Translator) SetTranslationInProgress(paragraphID string) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
+
+	if _, exists := t.inTranslation[paragraphID]; exists {
+		return fmt.Errorf("translation for paragraph ID %s is already in progress", paragraphID)
+	}
 	t.inTranslation[paragraphID] = time.Now()
-}
-
-// IsTranslationInProgress checks if a translation is currently in progress for a given paragraph ID.
-func (t *Translator) IsTranslationInProgress(paragraphID string) bool {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	_, exists := t.inTranslation[paragraphID]
-	return exists
+	return nil
 }
 
 // ClearTranslationInProgress clears the translation in progress for a given paragraph ID.
@@ -124,8 +121,8 @@ func (t *Translator) ClearTranslationInProgress(paragraphID string) {
 	delete(t.inTranslation, paragraphID)
 }
 
-// newTranslationContext creates a new translation context for the specified paragraph index.
-func (t *Translator) newTranslationContext(paragraphIndex int, sourceLang string, targetLang string, translateAhead int) *TranslationDocument {
+// newTranslationDocument creates a new translation document for the specified paragraph index.
+func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, translateAhead int) *TranslationDocument {
 
 	doc := &TranslationDocument{
 		Source: translation.Unit{
@@ -163,28 +160,133 @@ func (t *Translator) newTranslationContext(paragraphIndex int, sourceLang string
 	return doc
 }
 
-// FixTranslation re-translates the specified paragraph to fix its translation.
-func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) error {
-	log.Printf("fixing translation for paragraph %d", paragraphIndex)
-	if t.client == nil {
-		return errors.New("DeepSeek client is not initialized")
-	}
+type translationRequestContext struct {
+	sourceParagraph translation.Paragraph
+	sourceLang      string
+	targetLang      string
+	paragraphIndex  int
+}
 
+func (t *Translator) newTranslationRequestContext(paragraphIndex int) (*translationRequestContext, error) {
+	if t.client == nil {
+		return nil, errors.New("DeepSeek client is not initialized")
+	}
 	sourceParagraph, err := t.project.GetSourceParagraph(paragraphIndex)
 	if err != nil {
-		return fmt.Errorf("failed to get source paragraph: %v", err)
+		return nil, fmt.Errorf("failed to get source paragraph: %v", err)
 	}
 
 	sourceLang := t.project.GetSourceLanguage()
 	targetLang := t.project.GetTargetLanguage()
-	log.Printf("translating paragraph %d with ID %s from %s to %s", paragraphIndex, sourceParagraph.ID, sourceLang, targetLang)
-
-	if t.IsTranslationInProgress(sourceParagraph.ID) {
-		log.Printf("translation for paragraph %d is already in progress", paragraphIndex)
-		return fmt.Errorf("translation for paragraph %d is already in progress", paragraphIndex)
+	if sourceLang == "" || targetLang == "" {
+		return nil, errors.New("source or target language not set")
 	}
-	t.SetTranslationInProgress(sourceParagraph.ID)
-	defer t.ClearTranslationInProgress(sourceParagraph.ID)
+
+	err = t.SetTranslationInProgress(sourceParagraph.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &translationRequestContext{
+		sourceParagraph: sourceParagraph,
+		sourceLang:      sourceLang,
+		targetLang:      targetLang,
+		paragraphIndex:  paragraphIndex,
+	}, nil
+}
+
+// SimpleProofRead performs a simple proofread of the specified paragraph.
+func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) error {
+	log.Printf("proofreading paragraph %d", paragraphIndex)
+	rc, err := t.newTranslationRequestContext(paragraphIndex)
+	if err != nil {
+		return err
+	}
+	defer t.ClearTranslationInProgress(rc.sourceParagraph.ID)
+	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
+	defer t.stats.Completed(rc.sourceParagraph.ID)
+
+	systemPrompt, err := GetPrompt(`You are a professional proofreader and a native speaker of '{{.target_lang}}'. Your task is to proofread the provided text for grammar, spelling, punctuation, and overall readability. Ensure that the text flows well and is easy to understand. Make sure the text avoids using terms from other languages. Here is the text to proofread: '{{.text}}'`,
+		map[string]string{
+			"target_lang": rc.targetLang,
+			"text":        rc.sourceParagraph.Text,
+		})
+	if err != nil {
+		return fmt.Errorf("failed to create system prompt: %v", err)
+	}
+
+	doc := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
+	jsonData, err := json.Marshal(doc)
+	if err != nil {
+		return fmt.Errorf("failed to marshal translation document: %v", err)
+	}
+
+	userPrompt, err := GetPrompt(`The provided JSON object contains a 'target' paragraph that needs proofreading. It is a text that had been translated from {{.source_lang}} to '{{.target_lang}}'. The {{.source_lang}} is provided for reference. Please proofread the text in the 'target' paragraph and provide the corrected text in the same JSON format. Here is the JSON object: {{.data}}`,
+		map[string]string{
+			"source_lang": rc.sourceLang,
+			"target_lang": rc.targetLang,
+			"data":        string(jsonData),
+		})
+	if err != nil {
+		return fmt.Errorf("failed to create user prompt: %v", err)
+	}
+	request := deepseek.ChatCompletionRequest{
+		Model: deepseek.DeepSeekChat,
+		Messages: []deepseek.ChatCompletionMessage{
+			{
+				Role:    deepseek.ChatMessageRoleSystem,
+				Content: systemPrompt,
+			},
+			{
+				Role:    deepseek.ChatMessageRoleUser,
+				Content: userPrompt,
+			},
+		},
+		JSONMode: true,
+	}
+
+	log.Printf("requesting proofreading for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
+	resp, err := t.client.CreateChatCompletion(ctx, &request)
+	if resp == nil {
+		return errors.New("received nil response from DeepSeek API")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create chat completion: %v", err)
+	}
+	if len(resp.Choices) == 0 {
+		return errors.New("no choices returned from chat completion")
+	}
+	log.Printf("DeepSeek proofreading response: %s", resp.Choices[0].Message.Content)
+	var translationResponse TranslationDocument
+	extractor := deepseek.NewJSONExtractor(nil)
+	err = extractor.ExtractJSON(resp, &translationResponse)
+	if err != nil {
+		return fmt.Errorf("failed to extract JSON from response: %v", err)
+	}
+	log.Printf("response: %+v", translationResponse)
+	translation := translationResponse.Target.Paragraphs[0].Text
+	if translation == "" {
+		return errors.New("received empty translation from DeepSeek API")
+	}
+	log.Printf("proofread paragraph %d: %s", paragraphIndex, translation)
+	err = t.project.SetTranslation(paragraphIndex, translation)
+	if err != nil {
+		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
+	}
+	t.OnTranslationComplete(paragraphIndex, translation)
+	return nil
+}
+
+// FixTranslation re-translates the specified paragraph to fix its translation.
+func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) error {
+	log.Printf("fixing translation for paragraph %d", paragraphIndex)
+	rc, err := t.newTranslationRequestContext(paragraphIndex)
+	if err != nil {
+		return err
+	}
+	defer t.ClearTranslationInProgress(rc.sourceParagraph.ID)
+	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
+	defer t.stats.Completed(rc.sourceParagraph.ID)
 
 	bookDetails, err := json.Marshal(NewBookDetails(t.project))
 	if err != nil {
@@ -193,8 +295,8 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 
 	systemPrompt, err := GetPrompt(`You are a translation proofreader. The translation '{{.source_lang}}' to '{{.target_lang}}' was reported bad from the readers. Since you are also a native speaker of both '{{.source_lang}}' and '{{.target_lang}}', your task is to re-translate the text in the provided json. Fix any issues with translation, make an extra care to make sure all words and terms in the target language makes sense and are grammatically correct. Also make sure the target text avoids using terms from other languages. Here is some background information about the book being translated: {{.book_details}}`,
 		map[string]string{
-			"source_lang":  sourceLang,
-			"target_lang":  targetLang,
+			"source_lang":  rc.sourceLang,
+			"target_lang":  rc.targetLang,
 			"book_details": string(bookDetails),
 		})
 
@@ -202,14 +304,14 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	translationContext := t.newTranslationContext(paragraphIndex, sourceLang, targetLang, 0)
-	jsonData, err := json.Marshal(translationContext)
+	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
+	jsonData, err := json.Marshal(translationDocument)
 	if err != nil {
-		return fmt.Errorf("failed to marshal translation context: %v", err)
+		return fmt.Errorf("failed to marshal translation document: %v", err)
 	}
 	userPrompt, err := GetPrompt(`The provided JSON object contains a bad 'target' translation. Please re-translate to from 'source' paragraph to '{{.target_lang}}' it and provide the corrected translation in the same JSON format. Here is the JSON object: {{.data}}`,
 		map[string]string{
-			"target_lang": targetLang,
+			"target_lang": rc.targetLang,
 			"data":        string(jsonData),
 		})
 
@@ -228,7 +330,7 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 		JSONMode: true,
 	}
 
-	log.Printf("requesting fix- translation for paragraph %d from %s to %s", paragraphIndex, sourceLang, targetLang)
+	log.Printf("requesting fix- translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
 	resp, err := t.client.CreateChatCompletion(ctx, &request)
 	if resp == nil {
 		return errors.New("received nil response from DeepSeek API")
@@ -259,83 +361,63 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	if err != nil {
 		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
 	}
-	_, err = t.project.Save()
-	if err != nil {
-		return fmt.Errorf("failed to save project after fixing translation for paragraph %d: %v", paragraphIndex, err)
-	}
-	if t.OnTranslationComplete != nil {
-		t.OnTranslationComplete(paragraphIndex, translation)
-	}
+	t.OnTranslationComplete(paragraphIndex, translation)
 	return nil
 }
 
 // Translate translates the specified paragraph and updates the project with the translation.
 func (t *Translator) Translate(ctx context.Context, paragraphIndex int) error {
 	log.Printf("translating paragraph %d", paragraphIndex)
-	translation, err := t.TranslateParagraph(ctx, paragraphIndex)
+	err := t.TranslateParagraph(ctx, paragraphIndex)
 	if err != nil {
 		return err
 	}
-	err = t.project.SetTranslation(paragraphIndex, translation)
-	if err != nil {
-		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
+	if config.Options.AutoProofread {
+		log.Printf("auto-proofreading paragraph %d", paragraphIndex)
+		err = t.SimpleProofRead(ctx, paragraphIndex)
+		if err != nil {
+			return err
+		}
 	}
-
-	if t.OnTranslationComplete != nil {
-		t.OnTranslationComplete(paragraphIndex, translation)
-	}
-
 	return nil
 }
 
 // Translate translates a paragraph from the source language to the target language using the DeepSeek API and returns the translated text.
-func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int) (string, error) {
-	if t.client == nil {
-		return "", errors.New("DeepSeek client is not initialized")
-	}
+func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int) error {
+	log.Printf("translating paragraph %d", paragraphIndex)
 
-	sourceParagraph, err := t.project.GetSourceParagraph(paragraphIndex)
+	rc, err := t.newTranslationRequestContext(paragraphIndex)
 	if err != nil {
-		return "", fmt.Errorf("failed to get source paragraph: %v", err)
+		return err
 	}
 
-	sourceLang := t.project.GetSourceLanguage()
-	targetLang := t.project.GetTargetLanguage()
-	log.Printf("translating paragraph %d with ID %s from %s to %s", paragraphIndex, sourceParagraph.ID, sourceLang, targetLang)
+	defer t.ClearTranslationInProgress(rc.sourceParagraph.ID)
+	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
+	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	if t.IsTranslationInProgress(sourceParagraph.ID) {
-		log.Printf("translation for paragraph %d is already in progress", paragraphIndex)
-		return "", fmt.Errorf("translation for paragraph %d is already in progress", paragraphIndex)
-	}
-	t.SetTranslationInProgress(sourceParagraph.ID)
-	defer t.ClearTranslationInProgress(sourceParagraph.ID)
+	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslateAhead)
 
-	t.stats.Started(sourceParagraph.ID, len(sourceParagraph.Text))
-	defer t.stats.Completed(sourceParagraph.ID)
-
-	translationContext := t.newTranslationContext(paragraphIndex, sourceLang, targetLang, config.Options.TranslateAhead)
-
-	data, err := json.Marshal(translationContext)
+	data, err := json.Marshal(translationDocument)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal translation context: %v", err)
+		return fmt.Errorf("failed to marshal translation document: %v", err)
 	}
 
 	bookDetails, err := json.Marshal(NewBookDetails(t.project))
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal book details: %v", err)
+		return fmt.Errorf("failed to marshal book details: %v", err)
 	}
 
 	systemPrompt, err := GetPrompt(`You are a professional translator from '{{.source_lang}}' to '{{.target_lang}}' and a native speaker of both '{{.source_lang}}' and '{{.target_lang}}'. Your task is to translate '{{.book_title}}', which is a {{.book_type}}. The translation is done paragraph by paragraph. Make sure to translate the text accurately and preserve its meaning and the writer style. The translation should be: accurate; preserve the meaning and style of the original text; be free of grammatical errors; use natural and fluent {{.target_lang}} language; be culturally precise for contemporary {{.target_lang}} readers. Here are some details about the book: {{.book_details}}`,
 		map[string]string{
-			"source_lang":  sourceLang,
-			"target_lang":  targetLang,
+			"source_lang":  rc.sourceLang,
+			"target_lang":  rc.targetLang,
 			"book_title":   t.project.GetTitle(),
 			"book_type":    t.project.GetType(),
 			"book_details": string(bookDetails),
 		})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create system prompt: %v", err)
+		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
 	userPrompt := `I need to provide a JSON object with translated text. The 'source' field contains a list of paragraphs in the source language, and the 'target' field should contain the translated text in the target language. Some of them are already translated, make sure the translation is accurate, if so, keep the same ideas in the new paragraph. Keep translated names and terms consistent. provide the translation in a JSON object. Here is the JSON object: ` + string(data)
@@ -355,18 +437,18 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 		JSONMode: true,
 	}
 
-	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, sourceLang, targetLang)
+	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
 	resp, err := t.client.CreateChatCompletion(ctx, &request)
 	if resp == nil {
-		return "", errors.New("received nil response from DeepSeek API")
+		return errors.New("received nil response from DeepSeek API")
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create chat completion: %v", err)
+		return fmt.Errorf("failed to create chat completion: %v", err)
 	}
 
 	if len(resp.Choices) == 0 {
-		return "", errors.New("no choices returned from chat completion")
+		return errors.New("no choices returned from chat completion")
 	}
 
 	log.Printf("DeepSeek translation response: %s", resp.Choices[0].Message.Content)
@@ -375,17 +457,32 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	extractor := deepseek.NewJSONExtractor(nil)
 	err = extractor.ExtractJSON(resp, &translationResponse)
 	if err != nil {
-		return "", fmt.Errorf("failed to extract JSON from response: %v", err)
+		return fmt.Errorf("failed to extract JSON from response: %v", err)
 	}
 
 	log.Printf("response: %+v", translationResponse)
 	translation := translationResponse.Target.Paragraphs[len(translationResponse.Target.Paragraphs)-1].Text
 	if translation == "" {
-		return "", errors.New("received empty translation from DeepSeek API")
+		return errors.New("received empty translation from DeepSeek API")
 	}
 	log.Printf("translated paragraph %d: %s", paragraphIndex, translation)
 
-	return translation, nil
+	err = t.project.SetTranslation(paragraphIndex, translation)
+	if err != nil {
+		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
+	}
+
+	t.onTranslated(paragraphIndex, translation)
+	return nil
+
+}
+
+func (t *Translator) onTranslated(paragraphIndex int, translation string) error {
+	if t.OnTranslationComplete != nil {
+		t.OnTranslationComplete(paragraphIndex, translation)
+	}
+
+	return nil
 }
 
 // Stats returns the estimated time remaining for the next paragraph to complete and the number of paragraphs currently being translated.

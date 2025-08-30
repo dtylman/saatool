@@ -92,4 +92,5 @@ func (ps *ProjectSaver) onStatInterval() {
 func (ps *ProjectSaver) Stop() {
 	log.Println("Stopping project saver")
 	ps.cancel()
+	ps.onSaveInterval()
 }
