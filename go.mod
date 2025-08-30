@@ -8,7 +8,6 @@ require (
 	fyne.io/fyne/v2 v2.6.2
 	fyne.io/x/fyne v0.0.0-20250418202416-58a230ad1acb
 	github.com/cohesion-org/deepseek-go v1.3.2
-	github.com/dustin/go-humanize v1.0.1
 	github.com/emvi/iso-639-1 v1.1.1
 	github.com/stretchr/testify v1.10.0
 	github.com/taylorskalyo/goreader v1.0.1

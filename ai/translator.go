@@ -206,10 +206,9 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	systemPrompt, err := GetPrompt(`You are a professional proofreader and a native speaker of '{{.target_lang}}'. Your task is to proofread the provided text for grammar, spelling, punctuation, and overall readability. Ensure that the text flows well and is easy to understand. Make sure the text avoids using terms from other languages. Here is the text to proofread: '{{.text}}'`,
+	systemPrompt, err := GetPrompt(`You are a professional proofreader and a native speaker of '{{.target_lang}}'. Your task is to proofread the provided text for grammar, spelling, punctuation, and overall readability. Ensure that the text flows well and is easy to understand.`,
 		map[string]string{
 			"target_lang": rc.targetLang,
-			"text":        rc.sourceParagraph.Text,
 		})
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
@@ -273,7 +272,7 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 	if err != nil {
 		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
 	}
-	t.OnTranslationComplete(paragraphIndex, translation)
+	t.onTranslated(paragraphIndex, translation)
 	return nil
 }
 
@@ -361,7 +360,7 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	if err != nil {
 		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
 	}
-	t.OnTranslationComplete(paragraphIndex, translation)
+	t.onTranslated(paragraphIndex, translation)
 	return nil
 }
 
@@ -477,12 +476,10 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 
 }
 
-func (t *Translator) onTranslated(paragraphIndex int, translation string) error {
+func (t *Translator) onTranslated(paragraphIndex int, translation string) {
 	if t.OnTranslationComplete != nil {
 		t.OnTranslationComplete(paragraphIndex, translation)
 	}
-
-	return nil
 }
 
 // Stats returns the estimated time remaining for the next paragraph to complete and the number of paragraphs currently being translated.

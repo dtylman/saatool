@@ -16,8 +16,8 @@ var Options struct {
 	TranslateAhead int `json:"translate_ahead"`
 	//AppSize is the application size factor
 	AppSize int `json:"app_size"`
-	//TranslationContextParagraphs is the number of paragraphs to include in the translation context.
-	TranslationContextParagraphs int `json:"translation_context_paragraphs"`
+	//TranslationDocSize is the number of paragraphs to include in the translation context.
+	TranslationDocSize int `json:"translation_doc_size"`
 	//AutoProofread proofreads translated paragraphs immediately after translation
 	AutoProofread bool `json:"auto_proofread"`
 }
@@ -27,7 +27,7 @@ func init() {
 	Options.DeepSeekAPIKey = ""
 	Options.TranslateAhead = 6
 	Options.AppSize = 16
-	Options.TranslationContextParagraphs = 3
+	Options.TranslationDocSize = 3
 	Options.AutoProofread = true
 }
 

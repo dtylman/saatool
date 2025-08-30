@@ -15,25 +15,21 @@ import (
 
 // ProjectSaver saves the project periodically
 type ProjectSaver struct {
-	translator    *ai.Translator
-	project       *translation.Project
-	dirty         bool
-	label         *widget.Label
-	View          fyne.CanvasObject
-	cancel        context.CancelFunc
-	statsInterval time.Duration
-	saveInterval  time.Duration
+	translator *ai.Translator
+	project    *translation.Project
+	dirty      bool
+	label      *widget.Label
+	View       fyne.CanvasObject
+	cancel     context.CancelFunc
 }
 
 // NewProjectSaver creates a new ProjectSaver for the given project.
 func NewProjectSaver(translator *ai.Translator, project *translation.Project) *ProjectSaver {
 	ps := &ProjectSaver{
-		translator:    translator,
-		project:       project,
-		dirty:         false,
-		label:         widget.NewLabel("ETA"),
-		statsInterval: 4 * time.Second,
-		saveInterval:  30 * time.Second,
+		translator: translator,
+		project:    project,
+		dirty:      false,
+		label:      widget.NewLabel("ETA"),
 	}
 	panel := widgets.NewPanel(ps.label, fyne.NewSize(150, 20))
 	panel.Border = 3
@@ -44,6 +40,7 @@ func NewProjectSaver(translator *ai.Translator, project *translation.Project) *P
 
 // SetDirty marks the project as dirty or clean
 func (ps *ProjectSaver) SetDirty(dirty bool) {
+	log.Printf("Project dirty state changed: %v", dirty)
 	ps.dirty = dirty
 }
 
@@ -53,14 +50,17 @@ func (ps *ProjectSaver) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ps.cancel = cancel
 	go func() {
+		lastSave := time.Time{}
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(ps.statsInterval):
+			case <-time.After(4 * time.Second):
 				ps.onStatInterval()
-			case <-time.After(ps.saveInterval):
-				ps.onSaveInterval()
+				if time.Since(lastSave) > 30*time.Second {
+					ps.onSaveInterval()
+					lastSave = time.Now()
+				}
 			}
 		}
 	}()
@@ -68,6 +68,7 @@ func (ps *ProjectSaver) Start() {
 
 // onSaveInterval saves the project if there are unsaved changes
 func (ps *ProjectSaver) onSaveInterval() {
+	log.Printf("Auto-save interval triggered, dirty=%v", ps.dirty)
 	if ps.dirty {
 		log.Println("Auto-saving project...")
 		_, err := ps.project.Save()

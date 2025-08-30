@@ -17,6 +17,8 @@ import (
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // TranslationView represents the view for translating text in a project.
@@ -52,7 +54,8 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	}
 
 	tv.translator.OnTranslationComplete = tv.onTranslationCompleted
-	tv.btnLanguage = widget.NewButton(project.Source.Language, tv.onLangChanged)
+	lang := cases.Title(language.English).String(project.Source.Language)
+	tv.btnLanguage = widget.NewButton(lang, tv.onLangChanged)
 
 	Main.ClearActions()
 	Main.AddActionWidget(tv.btnLanguage)
@@ -193,6 +196,7 @@ func (tv *TranslationView) translateParagraph(paragraph int) error {
 
 // onTranslationCompleted is called when a translation is completed.
 func (tv *TranslationView) onTranslationCompleted(paragraphIndex int, translation string) {
+	tv.projectSaver.SetDirty(true)
 	if tv.paragraphIndex == paragraphIndex {
 		fyne.Do(func() {
 			tv.updateText()
@@ -247,7 +251,7 @@ func (tv *TranslationView) onPrevious() {
 
 // updateProgress updates the progress label with the current paragraph and word offset.
 func (tv *TranslationView) updateProgress() {
-	tv.btnProgress.SetText(fmt.Sprintf("p: %v.%v/%v", tv.paragraphIndex, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
+	tv.btnProgress.SetText(fmt.Sprintf("%v.%v/%v", tv.paragraphIndex, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
 	tv.project.LastSourceView = tv.sourceView
 	tv.project.LastParagraphIndex = tv.paragraphIndex
 }
@@ -295,10 +299,12 @@ func (tv *TranslationView) updateText() {
 func (tv *TranslationView) onLangChanged() {
 	tv.sourceView = !tv.sourceView
 	if tv.sourceView {
-		tv.btnLanguage.SetText(tv.project.Target.Language)
+		lang := cases.Title(language.English).String(tv.project.Source.Language)
+		tv.btnLanguage.SetText(lang)
 
 	} else {
-		tv.btnLanguage.SetText(tv.project.Source.Language)
+		lang := cases.Title(language.English).String(tv.project.Target.Language)
+		tv.btnLanguage.SetText(lang)
 	}
 	tv.updateText()
 }
