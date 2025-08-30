@@ -7,7 +7,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -18,7 +17,6 @@ import (
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
-	"github.com/dustin/go-humanize"
 )
 
 // TranslationView represents the view for translating text in a project.
@@ -29,10 +27,10 @@ type TranslationView struct {
 	txt            *widgets.BidiText
 	panelMain      *fyne.Container
 	btnProgress    *widget.Button
+	btnLanguage    *widget.Button
 	projectSaver   *ProjectSaver
-	sourceView     bool   // true for source language, false for target language
-	paragraphIndex int    // current paragraph index
-	projectHash    []byte // hash of the project to detect changes
+	sourceView     bool // true for source language, false for target language
+	paragraphIndex int  // current paragraph index
 
 }
 
@@ -50,13 +48,14 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 		sourceView:     project.LastSourceView,
 		paragraphIndex: project.LastParagraphIndex,
 		translator:     translator,
-		projectSaver:   NewProjectSaver(project),
+		projectSaver:   NewProjectSaver(translator, project),
 	}
 
 	tv.translator.OnTranslationComplete = tv.onTranslationCompleted
+	tv.btnLanguage = widget.NewButton(project.Source.Language, tv.onLangChanged)
 
 	Main.ClearActions()
-	Main.AddActionWidget(widget.NewCheck("Source", tv.onSourceChange))
+	Main.AddActionWidget(tv.btnLanguage)
 	Main.AddAction("Next", widgets.IconNext, tv.onNext)
 	Main.AddAction("Previous", widgets.IconPrev, tv.onPrevious)
 	Main.AddAction("Fix", widgets.IconFix, tv.onFixParagraph)
@@ -82,6 +81,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	return tv, nil
 }
 
+// WindowContent implementation:
 func (tv *TranslationView) View() fyne.CanvasObject {
 	return tv.view
 }
@@ -267,12 +267,6 @@ func (tv *TranslationView) updateText() {
 	if p.Text == "" {
 		tv.panelMain.RemoveAll()
 		text := "No text available for this paragraph."
-		if tv.translator != nil {
-			startTime := tv.translator.TranslationTime(p.ID)
-			if startTime != (time.Time{}) {
-				text = fmt.Sprintf("Translation in progress for paragraph %v %v", tv.paragraphIndex, humanize.Time(startTime))
-			}
-		}
 
 		label := widget.NewLabel(text)
 		label.Alignment = fyne.TextAlignCenter
@@ -298,8 +292,14 @@ func (tv *TranslationView) updateText() {
 }
 
 // onSourceChange handles the change of the source language toggle.
-func (tv *TranslationView) onSourceChange(checked bool) {
-	tv.sourceView = checked
+func (tv *TranslationView) onLangChanged() {
+	tv.sourceView = !tv.sourceView
+	if tv.sourceView {
+		tv.btnLanguage.SetText(tv.project.Target.Language)
+
+	} else {
+		tv.btnLanguage.SetText(tv.project.Source.Language)
+	}
 	tv.updateText()
 }
 

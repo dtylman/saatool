@@ -141,9 +141,10 @@ func (mw *MainWindow) AddActionWidget(widget fyne.CanvasObject) {
 	mw.toolBar.Refresh()
 }
 
-func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func()) {
+func (mw *MainWindow) AddAction(label string, icon fyne.Resource, action func()) *widget.Button {
 	btn := widget.NewButtonWithIcon(label, icon, action)
 	mw.toolBar.Add(btn)
+	return btn
 }
 
 func (mw *MainWindow) onSettingsTapped() {

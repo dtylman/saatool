@@ -20,6 +20,7 @@ type Translator struct {
 	project       *translation.Project
 	inTranslation map[string]time.Time
 	mutex         sync.Mutex
+	stats         *TranslationStatistics
 	//OnTranslationComplete happens after a paragraph is translated and saved to the project
 	OnTranslationComplete func(paragraphIndex int, translation string)
 }
@@ -36,6 +37,7 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
+		stats:         NewTranslationStatistics(),
 	}, nil
 }
 
@@ -283,10 +285,6 @@ func (t *Translator) Translate(ctx context.Context, paragraphIndex int) error {
 		t.OnTranslationComplete(paragraphIndex, translation)
 	}
 
-	_, err = t.project.Save()
-	if err != nil {
-		return fmt.Errorf("failed to save project after translating paragraph %d: %v", paragraphIndex, err)
-	}
 	return nil
 }
 
@@ -311,6 +309,9 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	}
 	t.SetTranslationInProgress(sourceParagraph.ID)
 	defer t.ClearTranslationInProgress(sourceParagraph.ID)
+
+	t.stats.Started(sourceParagraph.ID, len(sourceParagraph.Text))
+	defer t.stats.Completed(sourceParagraph.ID)
 
 	translationContext := t.newTranslationContext(paragraphIndex, sourceLang, targetLang, config.Options.TranslateAhead)
 
@@ -387,31 +388,7 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	return translation, nil
 }
 
-// TranslationTime returns the time taken for the translation of a paragraph.
-func (t *Translator) TranslationTime(paragraphID string) time.Time {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	startTime, exists := t.inTranslation[paragraphID]
-	if !exists {
-		return time.Time{}
-	}
-	return startTime
-}
-
-// TranslationStats returns the number of translations in progress and the earliest time of translation.
-func (t *Translator) TranslationStats() (int, time.Time) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	count := len(t.inTranslation)
-	if count == 0 {
-		return 0, time.Time{}
-	}
-
-	var earliestTime time.Time
-	for _, startTime := range t.inTranslation {
-		if earliestTime.IsZero() || startTime.Before(earliestTime) {
-			earliestTime = startTime
-		}
-	}
-	return count, earliestTime
+// Stats returns the estimated time remaining for the next paragraph to complete and the number of paragraphs currently being translated.
+func (t *Translator) Stats() (time.Duration, int) {
+	return t.stats.NextETA(), t.stats.InProgressCount()
 }

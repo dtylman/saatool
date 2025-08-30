@@ -2,30 +2,38 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
 // ProjectSaver saves the project periodically
 type ProjectSaver struct {
-	project *translation.Project
-	dirty   bool
-	label   *widget.Label
-	View    fyne.CanvasObject
-	cancel  context.CancelFunc
+	translator    *ai.Translator
+	project       *translation.Project
+	dirty         bool
+	label         *widget.Label
+	View          fyne.CanvasObject
+	cancel        context.CancelFunc
+	statsInterval time.Duration
+	saveInterval  time.Duration
 }
 
 // NewProjectSaver creates a new ProjectSaver for the given project.
-func NewProjectSaver(project *translation.Project) *ProjectSaver {
+func NewProjectSaver(translator *ai.Translator, project *translation.Project) *ProjectSaver {
 	ps := &ProjectSaver{
-		project: project,
-		dirty:   false,
-		label:   widget.NewLabel("Test"),
+		translator:    translator,
+		project:       project,
+		dirty:         false,
+		label:         widget.NewLabel("ETA"),
+		statsInterval: 4 * time.Second,
+		saveInterval:  30 * time.Second,
 	}
 	panel := widgets.NewPanel(ps.label, fyne.NewSize(150, 20))
 	panel.Border = 3
@@ -34,15 +42,12 @@ func NewProjectSaver(project *translation.Project) *ProjectSaver {
 	return ps
 }
 
+// SetDirty marks the project as dirty or clean
 func (ps *ProjectSaver) SetDirty(dirty bool) {
 	ps.dirty = dirty
-	if dirty {
-		ps.label.SetText("Unsaved changes")
-	} else {
-		ps.label.SetText("All changes saved")
-	}
 }
 
+// Start begins the periodic saving of the project
 func (ps *ProjectSaver) Start() {
 	log.Println("Starting project saver")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,16 +57,36 @@ func (ps *ProjectSaver) Start() {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(time.Second):
-				log.Println("Project saver tick")
-				timeStr := time.Now().Format("15:04:05")
-				fyne.Do(func() {
-					ps.label.SetText(timeStr)
-				})
-
+			case <-time.After(ps.statsInterval):
+				ps.onStatInterval()
+			case <-time.After(ps.saveInterval):
+				ps.onSaveInterval()
 			}
 		}
 	}()
+}
+
+// onSaveInterval saves the project if there are unsaved changes
+func (ps *ProjectSaver) onSaveInterval() {
+	if ps.dirty {
+		log.Println("Auto-saving project...")
+		_, err := ps.project.Save()
+		if err != nil {
+			log.Printf("Failed to save project: %v", err)
+		} else {
+			ps.dirty = false
+			log.Println("Project auto-saved.")
+		}
+	}
+}
+
+// onStatInterval updates the statistics label
+func (ps *ProjectSaver) onStatInterval() {
+	eta, total := ps.translator.Stats()
+	text := fmt.Sprintf("%d (ETA: %s)", total, eta.Truncate(time.Second))
+	fyne.Do(func() {
+		ps.label.SetText(text)
+	})
 }
 
 func (ps *ProjectSaver) Stop() {
