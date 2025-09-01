@@ -84,7 +84,7 @@ func (ps *ProjectSaver) onSaveInterval() {
 // onStatInterval updates the statistics label
 func (ps *ProjectSaver) onStatInterval() {
 	eta, total := ps.translator.Stats()
-	text := fmt.Sprintf("%d (ETA: %s)", total, eta.Truncate(time.Second))
+	text := fmt.Sprintf("%d (%s)", total, eta.Round(time.Second).String())
 	fyne.Do(func() {
 		ps.label.SetText(text)
 	})

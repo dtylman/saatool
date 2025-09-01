@@ -23,6 +23,9 @@ type TranslationStatistics struct {
 func NewTranslationStatistics() *TranslationStatistics {
 	return &TranslationStatistics{
 		paragraphsInProgress: make(map[string]statItem),
+		averageWordTime:      time.Millisecond * 25, // initial guess - 25ms per word
+		totalWords:           0,
+		totalTime:            0,
 	}
 }
 
@@ -49,8 +52,6 @@ func (t *TranslationStatistics) Completed(paragraphID string) {
 	t.totalTime += duration
 	if t.totalWords > 0 {
 		t.averageWordTime = t.totalTime / time.Duration(t.totalWords)
-	} else {
-		t.averageWordTime = 0
 	}
 	delete(t.paragraphsInProgress, paragraphID)
 }

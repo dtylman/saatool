@@ -48,7 +48,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 		txt:            widgets.NewBidiText(),
 		btnProgress:    widget.NewButton("", nil),
 		sourceView:     project.LastSourceView,
-		paragraphIndex: project.LastParagraphIndex,
+		paragraphIndex: 0,
 		translator:     translator,
 		projectSaver:   NewProjectSaver(translator, project),
 	}
@@ -67,7 +67,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	Main.AddActionWidget(tv.btnProgress)
 	Main.AddActionWidget(tv.projectSaver.View)
 
-	tv.txt.Direction = widgets.RightToLeft
+	//tv.txt.Direction = widgets.RightToLeft
 	appSize := config.Options.AppSize
 	tv.txt.TextSize = float32(appSize) * 2
 	tv.txt.Padding = float32(appSize) / 2
@@ -77,6 +77,9 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	view := widgets.NewPanel(tv.panelMain, fyne.NewSize(0, 0))
 	view.OnTapped = tv.onMainPanelTapped
 	tv.view = view
+
+	// Set the initial paragraph
+	tv.SetParagraph(project.LastParagraphIndex)
 
 	tv.updateProgress()
 	tv.updateText()
@@ -312,5 +315,4 @@ func (tv *TranslationView) onLangChanged() {
 // onFixParagraph handles the action of fixing the current paragraph by re-translating it.
 func (tv *TranslationView) onFixParagraph() {
 	go tv.translator.FixTranslation(context.Background(), tv.paragraphIndex)
-	tv.updateProgress()
 }

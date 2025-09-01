@@ -96,5 +96,7 @@ func (sv *SettingsView) onSaveTapped() {
 	if err != nil {
 		log.Printf("failed to save settings: %v", err)
 		Main.ShowError(fmt.Sprintf("failed to save settings: %v", err))
+	} else {
+		Main.ShowMessage("Settings saved")
 	}
 }

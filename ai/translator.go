@@ -122,7 +122,7 @@ func (t *Translator) ClearTranslationInProgress(paragraphID string) {
 }
 
 // newTranslationDocument creates a new translation document for the specified paragraph index.
-func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, translateAhead int) *TranslationDocument {
+func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, docSize int) *TranslationDocument {
 
 	doc := &TranslationDocument{
 		Source: translation.Unit{
@@ -135,7 +135,10 @@ func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang strin
 		},
 	}
 
-	previousParagraphsCount := translateAhead
+	previousParagraphsCount := docSize - 1
+	if previousParagraphsCount < 0 {
+		previousParagraphsCount = 0
+	}
 	fromParagraphIndex := paragraphIndex - previousParagraphsCount
 	if fromParagraphIndex < 0 {
 		fromParagraphIndex = 0
@@ -394,7 +397,7 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslateAhead)
+	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
 
 	data, err := json.Marshal(translationDocument)
 	if err != nil {
