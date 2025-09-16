@@ -12,7 +12,7 @@ import (
 // Panel is a custom widget that wraps another widget and enforces a minimum size.
 type Panel struct {
 	widget.BaseWidget
-	child       fyne.CanvasObject
+	Child       fyne.CanvasObject
 	rect        *canvas.Rectangle
 	minSize     fyne.Size
 	Border      float32
@@ -24,7 +24,7 @@ type Panel struct {
 // NewPanel creates a new Panel with the specified child widget and minimum size.
 func NewPanel(child fyne.CanvasObject, minSize fyne.Size) *Panel {
 	panel := &Panel{
-		child:       child,
+		Child:       child,
 		minSize:     minSize,
 		Border:      0,
 		BorderColor: theme.Color(theme.ColorNameForeground),
@@ -44,7 +44,7 @@ func (p *Panel) CreateRenderer() fyne.WidgetRenderer {
 	if p.rect != nil {
 		objs = append(objs, p.rect)
 	}
-	objs = append(objs, p.child)
+	objs = append(objs, p.Child)
 	return &panelRenderer{
 		panel:   p,
 		objects: objs,
@@ -56,6 +56,12 @@ func (p *Panel) Tapped(pe *fyne.PointEvent) {
 	if p.OnTapped != nil {
 		p.OnTapped(pe)
 	}
+}
+
+// SetMinSize sets the minimum size of the panel and refreshes it.
+func (p *Panel) SetMinSize(size fyne.Size) {
+	p.minSize = size
+	p.Refresh()
 }
 
 // panelRenderer implements the WidgetRenderer interface.
@@ -71,13 +77,13 @@ func (r *panelRenderer) MinSize() fyne.Size {
 
 // Layout arranges the child widget to fill the entire panel.
 func (r *panelRenderer) Layout(size fyne.Size) {
-	if r.panel.child == nil {
+	if r.panel.Child == nil {
 		return
 	}
 	if r.panel.rect != nil {
 		r.panel.rect.Resize(size)
 	}
-	r.panel.child.Resize(size)
+	r.panel.Child.Resize(size)
 }
 
 // Objects returns the objects to be rendered.
@@ -87,7 +93,7 @@ func (r *panelRenderer) Objects() []fyne.CanvasObject {
 
 // Refresh is called when the widget's state changes.
 func (r *panelRenderer) Refresh() {
-	if r.panel.child == nil {
+	if r.panel.Child == nil {
 		return
 	}
 	if r.panel.rect != nil {
@@ -95,7 +101,7 @@ func (r *panelRenderer) Refresh() {
 		r.panel.rect.StrokeColor = r.panel.BorderColor
 		r.panel.rect.StrokeWidth = r.panel.Border
 	}
-	r.panel.child.Refresh()
+	r.panel.Child.Refresh()
 }
 
 // Destroy is for cleaning up.

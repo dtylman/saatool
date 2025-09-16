@@ -11,7 +11,7 @@ import (
 // LogView represents the log view in the application.
 type LogView struct {
 	view     fyne.CanvasObject
-	table    *widget.Table
+	textGrid *widget.TextGrid
 	messages []string
 }
 
@@ -19,11 +19,14 @@ type LogView struct {
 func NewLogView() *LogView {
 	lv := &LogView{}
 
-	lv.table = widget.NewTable(
-		lv.len, lv.create, lv.update,
-	)
+	lv.textGrid = widget.NewTextGrid()
+	lv.textGrid.ShowLineNumbers = true
+	lv.textGrid.Scroll = fyne.ScrollBoth
+	lv.textGrid.ShowWhitespace = false
 
-	lv.view = lv.table
+	lv.view = lv.textGrid
+
+	Main.ClearActions()
 
 	Main.AddAction("Refresh", widgets.IconReload, lv.refreshTapped)
 
@@ -40,32 +43,20 @@ func (lv *LogView) Close() {
 
 func (lv *LogView) Load() {
 	lv.loadMessages()
-	lv.table.Refresh()
-}
-
-func (lv *LogView) len() (int, int) {
-	return len(lv.messages), 1
-}
-
-func (lv *LogView) create() fyne.CanvasObject {
-	return widget.NewLabel("")
-}
-
-func (lv *LogView) update(id widget.TableCellID, cell fyne.CanvasObject) {
-	if id.Row < 0 || id.Row >= len(lv.messages) {
-		return
-	}
-
-	label := cell.(*widget.Label)
-	label.SetText(lv.messages[id.Row])
+	lv.textGrid.Refresh()
 }
 
 func (lv *LogView) loadMessages() {
 	lv.messages = MemoryLog.GetMessages()
 	slices.Reverse(lv.messages)
+	lv.textGrid.Rows = make([]widget.TextGridRow, 0)
+	for _, msg := range lv.messages {
+		lv.textGrid.Append(msg)
+	}
+	lv.textGrid.Refresh()
 }
 
 func (lv *LogView) refreshTapped() {
 	lv.loadMessages()
-	lv.table.Refresh()
+	lv.textGrid.Refresh()
 }
