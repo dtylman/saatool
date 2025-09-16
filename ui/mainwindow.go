@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -11,9 +12,9 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"fyne.io/x/fyne/layout"
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/config"
+	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
@@ -37,20 +38,31 @@ type MainWindow struct {
 	translator *ai.Translator
 }
 
-func (mw *MainWindow) OpenSaveDialog(callback func(fyne.URIWriteCloser, error), filter ...string) {
+func (mw *MainWindow) OpenProjectSaveDialog(callback func(fyne.URIWriteCloser, error), project *translation.Project) {
 	fg := dialog.NewFileSave(callback, mw.window)
-	fg.SetFilter(storage.NewExtensionFileFilter(filter))
+	if project != nil {
+		fileName := project.Name
+		if fileName == "" {
+			fileName = "untitled"
+		}
+		if !strings.HasSuffix(fileName, config.ProjectFileExt) {
+			fileName += config.ProjectFileExt
+		}
+
+		fg.SetFileName(fileName)
+	}
+	fg.SetFilter(storage.NewExtensionFileFilter([]string{config.ProjectFileExt}))
 	fg.Show()
 }
 
 // OpenFileDialog opens a file dialog to select a file and calls the callback with the selected file.
-func (mw *MainWindow) OpenFileDialog(callback func(reader fyne.URIReadCloser, err error), filter ...string) {
+func (mw *MainWindow) OpenProjectLoadDialog(callback func(reader fyne.URIReadCloser, err error)) {
 	fd := dialog.NewFileOpen(callback, mw.window)
-	fd.SetFilter(storage.NewExtensionFileFilter(filter))
+	fd.SetFilter(storage.NewExtensionFileFilter([]string{config.ProjectFileExt}))
 	fd.Show()
 }
 
-// NewMAinWindow creates a new instance of the main application window.
+// NewMainWindow creates a new instance of the main application window.
 func NewMainWindow() error {
 	if Main != nil {
 		return errors.New("main window already exists")
@@ -59,7 +71,7 @@ func NewMainWindow() error {
 	Main = &MainWindow{
 		fyneApp: app.New(),
 		window:  nil,
-		toolBar: container.NewGridWrap(fyne.NewSize(100, 40)),
+		toolBar: container.NewGridWrap(fyne.NewSize(100, 50)),
 		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v-%v", app.New().Metadata().Version, app.New().Metadata().Build)),
 	}
 
@@ -75,7 +87,7 @@ func (mw *MainWindow) ShowAndRun() {
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	mw.fyneApp.Settings().SetTheme(widgets.NewTheme(config.Options.AppSize))
+	// mw.fyneApp.Settings().SetTheme(widgets.NewTheme(config.Options.AppSize))
 
 	mw.window = mw.fyneApp.NewWindow("SaaTool")
 
@@ -107,14 +119,14 @@ func (mw *MainWindow) Refresh() {
 			mw.header,
 		)
 
+		mainToolBar := container.NewGridWrap(fyne.NewSize(100, 50))
+		mainToolBar.Add(widget.NewButtonWithIcon("Projects", widgets.IconProject, mw.onProjectsTapped))
+		mainToolBar.Add(widget.NewButtonWithIcon("Settings", widgets.IconSettings, mw.onSettingsTapped))
+		mainToolBar.Add(widget.NewButtonWithIcon("Log", widgets.IconLog, mw.onLogTapped))
+
 		panelBottom := container.NewVBox(
 			mw.toolBar,
-
-			layout.NewResponsiveLayout(
-				layout.Responsive(widget.NewButtonWithIcon("Projects", widgets.IconProject, mw.onProjectsTapped), 0.33),
-				layout.Responsive(widget.NewButtonWithIcon("Settings", widgets.IconSettings, mw.onSettingsTapped), 0.33),
-				layout.Responsive(widget.NewButtonWithIcon("Log", widgets.IconLog, mw.onLogTapped), 0.33),
-			),
+			mainToolBar,
 		)
 
 		mw.window.SetContent(

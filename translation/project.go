@@ -160,16 +160,10 @@ func LoadProject(path string) (*Project, error) {
 
 // Save saves the project to its file.
 func (p *Project) Save() (string, error) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
 
 	log.Printf("saving project '%v'", p.Name)
 	if p.Name == "" {
 		return "", fmt.Errorf("project name is empty")
-	}
-	data, err := json.MarshalIndent(p, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal project: %v", err)
 	}
 
 	fileName := filepath.Join(config.ProjectsDir(), p.Name)
@@ -184,18 +178,30 @@ func (p *Project) Save() (string, error) {
 		return "", fmt.Errorf("failed to create project file: %v", err)
 	}
 	defer outFile.Close()
-
-	gzipWriter := gzip.NewWriter(outFile)
-	defer gzipWriter.Close()
-
-	n, err := io.Copy(gzipWriter, bytes.NewReader(data))
+	n, err := p.SaveToWriter(outFile)
 	if err != nil {
-		return "", fmt.Errorf("failed to write project file: %v", err)
+		return "", fmt.Errorf("failed to save project: %v", err)
 	}
 
 	log.Printf("wrote %d bytes to %s", n, fileName)
-
 	return fileName, nil
+
+}
+
+// SaveToWriter saves the project to the provided writer.
+func (p *Project) SaveToWriter(writer io.Writer) (int64, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	gzipWriter := gzip.NewWriter(writer)
+	defer gzipWriter.Close()
+
+	data, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal project: %v", err)
+	}
+
+	return io.Copy(gzipWriter, bytes.NewReader(data))
 }
 
 // Normalize ensures that the project has valid data.
@@ -287,4 +293,24 @@ func (p *Project) SetPosition(view bool, index int) {
 
 	p.LastSourceView = view
 	p.LastParagraphIndex = index
+}
+
+// DeleteProject deletes the project file from disk.
+func DeleteProject(proj *Project) error {
+	if proj == nil {
+		return fmt.Errorf("project is nil")
+	}
+	if proj.Name == "" {
+		return fmt.Errorf("project name is empty")
+	}
+	fileName := filepath.Join(config.ProjectsDir(), proj.Name)
+	if filepath.Ext(fileName) != config.ProjectFileExt {
+		fileName += config.ProjectFileExt
+	}
+	log.Printf("deleting project file %s", fileName)
+	err := os.Remove(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to delete project file: %v", err)
+	}
+	return nil
 }

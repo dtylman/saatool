@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
@@ -25,9 +26,10 @@ func NewProjectsView() *ProjectsView {
 	pv := &ProjectsView{}
 
 	Main.ClearActions()
+	Main.AddAction("Translate", widgets.IconTranslate, pv.onTranslateTapped)
 	Main.AddAction("Import", widgets.IconOpen, pv.onImportTapped)
 	Main.AddAction("Export", widgets.IconSave, pv.onExportTapped)
-	Main.AddAction("Translate", widgets.IconTranslate, pv.onTranslateTapped)
+	Main.AddAction("Delete", widgets.IconDelete, pv.onDeleteTapped)
 
 	pv.lstProjects = widget.NewList(pv.lstProjectsLen, pv.lstProjectsCreateItem, pv.lstProjectsUpdateItem)
 	pv.lstProjects.OnSelected = pv.onProjectSelected
@@ -121,12 +123,30 @@ func (pl *ProjectsView) onExportTapped() {
 		Main.ShowError("No project loaded to export.")
 		return
 	}
-	//Main.SaveFileDialog(pl.project.Name+".json", pl.onProjectFileSaved)
+	Main.OpenProjectSaveDialog(pl.onProjectFileExported, pl.selectedProject)
+}
+
+func (pl *ProjectsView) onProjectFileExported(writer fyne.URIWriteCloser, err error) {
+	if err != nil {
+		Main.ShowError(fmt.Sprintf("Failed to export project file: %v", err))
+		return
+	}
+	if writer == nil {
+		Main.ShowError("No file selected to export project.")
+		return
+	}
+	err1 := translation.ExportProject(pl.selectedProject, writer)
+	if err1 != nil {
+		Main.ShowError(fmt.Sprintf("Failed to export project file: %v", err1))
+		return
+	}
+	writer.Close()
+	Main.ShowMessage(fmt.Sprintf("Project exported to %s", writer.URI().Name()))
 }
 
 // onOpenTapped handles the Open action for the project.
 func (pl *ProjectsView) onImportTapped() {
-	Main.OpenFileDialog(pl.onProjectFileOpened, config.ProjectFileExt)
+	Main.OpenProjectLoadDialog(pl.onProjectFileOpened)
 }
 
 func (pl *ProjectsView) onProjectFileOpened(reader fyne.URIReadCloser, err error) {
@@ -165,4 +185,27 @@ func (ed *ProjectsView) onTranslateTapped() {
 		return
 	}
 	Main.SetContent(tv)
+}
+
+func (ed *ProjectsView) onDeleteTapped() {
+	if ed.selectedProject == nil {
+		Main.ShowError("No project loaded to delete.")
+		return
+	}
+
+	msg := fmt.Sprintf("Are you sure you want to delete the project '%s'?", ed.selectedProject.Title)
+	confirm := dialog.NewConfirm("Delete Project", msg, func(confirmed bool) {
+		if !confirmed {
+			return
+		}
+		err := translation.DeleteProject(ed.selectedProject)
+		if err != nil {
+			Main.ShowError(fmt.Sprintf("Failed to delete project: %v", err))
+			return
+		}
+		ed.selectedProject = nil
+		ed.listProjects()
+		Main.SetContent(ed)
+	}, Main.window)
+	confirm.Show()
 }

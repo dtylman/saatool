@@ -49,3 +49,7 @@ var IconSave = fyne.NewStaticResource("save.svg", iconSave)
 //go:embed fix.svg
 var iconFix []byte
 var IconFix = fyne.NewStaticResource("fix.svg", iconFix)
+
+//go:embed delete.svg
+var iconDelete []byte
+var IconDelete = fyne.NewStaticResource("delete.svg", iconDelete)
