@@ -35,13 +35,32 @@ jobs:
 
     - name: Build 
       run: | 
-        # cd ${{ github.workspace }}/cmd/saatool
-        # go build
-        # cd ${{ github.workspace }}/cmd/satooltool
-        # go build
         SOURCE_DIR=${{ github.workspace }}/cmd/saatool
         APP_ICON=$SOURCE_DIR/icon.png
-        fyne package --target android/arm64 --app-id org.saatool.app --source-dir $SOURCE_DIR --name "SAATOOL" --icon $APP_ICON
-
-
+        FYNE_METADATA=$SOURCE_DIR/FyneApp.toml
         
+        # Extract version and build number from FyneApp.toml
+        APP_VERSION=$(grep 'Version = ' $FYNE_METADATA | sed 's/.*Version = "\(.*\)".*/\1/')
+        BUILD_NUMBER=$(grep 'Build = ' $FYNE_METADATA | sed 's/.*Build = \(.*\)/\1/')
+        APP_ID=$(grep 'ID = ' $FYNE_METADATA | sed 's/.*ID = "\(.*\)".*/\1/')
+        APP_NAME=$(grep 'Name = ' $FYNE_METADATA | sed 's/.*Name = "\(.*\)".*/\1/')
+        TARGET=android/arm64
+        OUTPUT=${{ github.workspace }}/$APP_NAME-$APP_VERSION-$BUILD_NUMBER-$TARGET.apk
+
+        echo "App Version: $APP_VERSION Build Number: $BUILD_NUMBER App ID: $APP_ID App Name: $APP_NAME"
+        
+        echo "Building $OUTPUT..."
+        fyne package --target android/arm64 --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION -exe $OUTPUT
+
+        TARGET=android/amd64
+        OUTPUT=${{ github.workspace }}/$APP_NAME-$APP_VERSION-$BUILD_NUMBER-$TARGET.apk
+
+        echo "Building $OUTPUT..."
+        fyne package --target android/amd64 --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION -exe $OUTPUT
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: saatool-apks
+        path: |
+          ${{ github.workspace }}/SAATOOL-*.apk

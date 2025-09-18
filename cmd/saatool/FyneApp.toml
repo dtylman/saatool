@@ -1,7 +1,7 @@
 [Details]
-  Name = "saatool"
-  ID = "saatool"
-  Version = "0.0.0"
+  Name = "SAATool"
+  ID = "org.saatool.app"
+  Version = "0.0.1"
   Build = 107
 
 [Migrations]
