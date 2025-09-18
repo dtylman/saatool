@@ -59,10 +59,11 @@ jobs:
         mv $SOURCE_DIR/$APP_NAME.apk $OUTPUT
         
     - name: Commit Changes
-      run: |                      
+      run: |  
+        FYNE_METADATA=${{ github.workspace }}/cmd/saatool/FyneApp.toml
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add {{ github.workspace }}/cmd/saatool/FyneApp.toml
+        git add $FYNE_METADATA
         git commit -m "Update build artifacts [skip ci]" || echo "No changes to commit"
         git push origin HEAD:main
 

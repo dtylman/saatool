@@ -109,9 +109,6 @@ This creates a `.spz` file ready for import.
 
 ![Settings Screen](doc/settings_screen.png)
  
-#### Import/Export workflow:
-
-![Import/Export Workflow](doc/import_export_workflow.png)
 
 ## Development
 
