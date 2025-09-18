@@ -58,14 +58,11 @@ jobs:
         fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION
         mv $SOURCE_DIR/$APP_NAME.apk $OUTPUT
         
-    # - name: Commit Changes
-    #   run: |  
-    #     FYNE_METADATA=${{ github.workspace }}/cmd/saatool/FyneApp.toml
-    #     git config --global user.name "github-actions[bot]"
-    #     git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    #     git add $FYNE_METADATA
-    #     git commit -m "Update build artifacts [skip ci]" || echo "No changes to commit"
-    #     git push origin HEAD:main
+    - name: Commit build number change
+      uses: stefanzweifel/git-auto-commit-action@v6
+      with:
+        commit_message: "CI: Bump build number [skip ci]"        
+        files: ${{ github.workspace }}/cmd/saatool/FyneApp.toml  
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4.6.2
