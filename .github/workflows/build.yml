@@ -50,17 +50,28 @@ jobs:
         echo "App Version: $APP_VERSION Build Number: $BUILD_NUMBER App ID: $APP_ID App Name: $APP_NAME"
         
         echo "Building $OUTPUT..."
-        fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION -exe $OUTPUT
+        fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION 
+        mv $APP_NAME.apk $OUTPUT
 
         TARGET=android/amd64
-        OUTPUT=${{ github.workspace }}/$APP_NAME-$APP_VERSION-$BUILD_NUMBER-amd64.apk
+        OUTPUT=${{ github.workspace }}/$APP_NAME-$APP_VERSION-$BUILD_NUMBER-amd64.apk      
 
         echo "Building $OUTPUT..."
-        fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION -exe $OUTPUT
+        fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION
+        mv $APP_NAME.apk $OUTPUT
+        
+    - name: Commit Changes
+      run: |      
+        FYNE_METADATA=$SOURCE_DIR/FyneApp.toml
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add $FYNE_METADATA
+        git commit -m "Update build artifacts [skip ci]" || echo "No changes to commit"
+        git push origin HEAD:main
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4.6.2
       with:        
         name: saatool-apks        
         path: |
-          ${{ github.workspace }}/SAATOOL-*.apk
+          ${{ github.workspace }}/*.apk
