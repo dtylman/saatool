@@ -57,6 +57,7 @@ jobs:
         OUTPUT=${{ github.workspace }}/$APP_NAME-$APP_VERSION-$BUILD_NUMBER-amd64.apk      
 
         echo "Building $OUTPUT..."
+        echo fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION
         fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION
         mv $APP_NAME.apk $OUTPUT
         
