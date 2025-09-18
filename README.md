@@ -97,12 +97,21 @@ This creates a `.spz` file ready for import.
 
 ### Screenshots
 
-*[Screenshots will be added here]*
+#### Main projects view:
 
-- Main projects view
-- Translation interface
-- Settings screen
-- Import/Export workflow
+![Main Projects View](doc/projects_view.png)
+
+#### Translation interface:
+
+![Translation Interface](doc/translation_interface.png)
+
+#### Settings screen:
+
+![Settings Screen](doc/settings_screen.png)
+ 
+#### Import/Export workflow:
+
+![Import/Export Workflow](doc/import_export_workflow.png)
 
 ## Development
 

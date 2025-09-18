@@ -2,7 +2,7 @@
   Name = "SAATool"
   ID = "org.saatool.app"
   Version = "0.0.1"
-  Build = 107
+  Build = 111
 
 [Migrations]
   fyneDo = true
