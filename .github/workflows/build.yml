@@ -38,7 +38,7 @@ jobs:
         echo ANDROID_HOME is $ANDROID_HOME
         echo PATH is $PATH
         echo ANDROID_NDK_HOME is $ANDROID_NDK_HOME
-        
+
         SOURCE_DIR=${{ github.workspace }}/cmd/saatool
         APP_ICON=$SOURCE_DIR/icon.png
         FYNE_METADATA=$SOURCE_DIR/FyneApp.toml
@@ -55,7 +55,7 @@ jobs:
         
         echo "Building $OUTPUT..."
         fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION 
-        mv $APP_NAME.apk $OUTPUT
+        mv $SOURCE_DIR/$APP_NAME.apk $OUTPUT
 
         TARGET=android/amd64
         OUTPUT=${{ github.workspace }}/$APP_NAME-$APP_VERSION-$BUILD_NUMBER-amd64.apk      
@@ -63,7 +63,7 @@ jobs:
         echo "Building $OUTPUT..."
         echo fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION
         fyne package --target $TARGET --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION
-        mv $APP_NAME.apk $OUTPUT      
+        mv $SOURCE_DIR/$APP_NAME.apk $OUTPUT
         
     - name: Commit Changes
       run: |      
