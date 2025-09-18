@@ -58,9 +58,9 @@ jobs:
         echo "Building $OUTPUT..."
         fyne package --target android/amd64 --app-id $APP_ID --source-dir $SOURCE_DIR --name $APP_NAME --icon $APP_ICON --app-build $BUILD_NUMBER --app-version=$APP_VERSION -exe $OUTPUT
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: saatool-apks
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4.6.2
+      with:        
+        name: saatool-apks        
         path: |
           ${{ github.workspace }}/SAATOOL-*.apk
