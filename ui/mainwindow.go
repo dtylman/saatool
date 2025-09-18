@@ -87,7 +87,7 @@ func (mw *MainWindow) ShowAndRun() {
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	// mw.fyneApp.Settings().SetTheme(widgets.NewTheme(config.Options.AppSize))
+	mw.fyneApp.Settings().SetTheme(widgets.NewTheme(config.Options.AppSize))
 
 	mw.window = mw.fyneApp.NewWindow("SaaTool")
 

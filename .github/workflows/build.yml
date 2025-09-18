@@ -31,8 +31,17 @@ jobs:
       run: |
         go version        
         fyne version
-        sdkmanager --list
+        sdkmanager --version
 
     - name: Build 
       run: | 
-        cd cmd/saatool
+        # cd ${{ github.workspace }}/cmd/saatool
+        # go build
+        # cd ${{ github.workspace }}/cmd/satooltool
+        # go build
+        SOURCE_DIR=${{ github.workspace }}/cmd/saatool
+        APP_ICON=$SOURCE_DIR/icon.png
+        fyne package --target android/arm64 --app-id org.saatool.app --source-dir $SOURCE_DIR --name "SAATOOL" --icon $APP_ICON
+
+
+        
