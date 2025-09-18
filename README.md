@@ -97,18 +97,10 @@ This creates a `.spz` file ready for import.
 
 ### Screenshots
 
-#### Main projects view:
+|Projects View|Translation Interface|Settings Screen|
+|-------------|---------------------|----------------|
+| ![Main Projects View](doc/projects_view.png) | ![Translation Interface](doc/translation_interface.png) | ![Settings Screen](doc/settings_screen.png) |    
 
-![Main Projects View](doc/projects_view.png)
-
-#### Translation interface:
-
-![Translation Interface](doc/translation_interface.png)
-
-#### Settings screen:
-
-![Settings Screen](doc/settings_screen.png)
- 
 
 ## Development
 
