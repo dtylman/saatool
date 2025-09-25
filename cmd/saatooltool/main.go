@@ -25,5 +25,6 @@ func main() {
 		EnableShellCompletion: true,
 	}
 	actions.AddAction(cmd, "import", &actions.EPubImportAction{})
+	actions.AddAction(cmd, "import", &actions.PDFImportAction{})
 	cmd.Run(context.Background(), os.Args)
 }
