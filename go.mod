@@ -1,6 +1,6 @@
 module github.com/dtylman/saatool
 
-go 1.24.0
+go 1.24.1
 
 toolchain go1.24.6
 
@@ -8,8 +8,10 @@ require (
 	fyne.io/fyne/v2 v2.6.3
 	github.com/cohesion-org/deepseek-go v1.3.2
 	github.com/emvi/iso-639-1 v1.1.1
+	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/stretchr/testify v1.10.0
 	github.com/taylorskalyo/goreader v1.0.1
+	github.com/urfave/cli/v3 v3.4.1
 	golang.org/x/text v0.22.0
 	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056
 )

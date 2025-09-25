@@ -1,4 +1,4 @@
-package main
+package actions
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestParagraphSplitter_Split(t *testing.T) {
-	ps := NewParagraphSplitter()
+	ps := NewParagraphSplitter(200, 300, false)
 	text := "one\ntwo\nthree\nfour.\n\nfive\nsix\nseven\nine."
 	paragraphs := ps.Split(text)
 	assert.Len(t, paragraphs, 2)

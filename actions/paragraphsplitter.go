@@ -1,4 +1,4 @@
-package main
+package actions
 
 import (
 	"regexp"
@@ -10,12 +10,21 @@ import (
 type ParagraphSplitter struct {
 	// Accumulated paragraphs
 	paragraphs []string
+	// Maximum words per paragraph before considering a split
+	MaxWords int
+	// Maximum words per paragraph before forcing a split
+	MaxWordsTolerance int
+	// Flag to strip non-ASCII characters
+	StripToAscii bool
 }
 
 // NewParagraphSplitter creates a new ParagraphSplitter with the specified maximum words per paragraph.
-func NewParagraphSplitter() *ParagraphSplitter {
+func NewParagraphSplitter(maxWords, maxWordsTolerance int, stripToAscii bool) *ParagraphSplitter {
 	return &ParagraphSplitter{
-		paragraphs: make([]string, 0),
+		paragraphs:        make([]string, 0),
+		MaxWords:          maxWords,
+		MaxWordsTolerance: maxWordsTolerance,
+		StripToAscii:      stripToAscii,
 	}
 }
 
@@ -52,7 +61,7 @@ New paragraphs should be created when:
 */
 func (ps *ParagraphSplitter) Split(text string) []string {
 	var clean = text
-	if ToolToolOptions.StripToAscii {
+	if ps.StripToAscii {
 		// Preprocess: keep only ASCII letters, numbers, punctuation, and newlines
 		re := regexp.MustCompile(`[^\x20-\x7E\n]`)
 		clean = re.ReplaceAllString(text, "")
@@ -114,7 +123,7 @@ func (ps *ParagraphSplitter) Split(text string) []string {
 		wordCount++
 
 		// 3. Split if wordCount > maxWords and ends with sentence-ending punctuation
-		if wordCount > ToolToolOptions.MaxWords && isSentenceEnd(word) {
+		if wordCount > ps.MaxWords && isSentenceEnd(word) {
 			ps.addParagraph(strings.Join(currentParagraph, " "))
 			currentParagraph = nil
 			wordCount = 0
@@ -122,19 +131,19 @@ func (ps *ParagraphSplitter) Split(text string) []string {
 		}
 
 		// 4. Split if wordCount > maxWordsTolerance
-		if wordCount > ToolToolOptions.MaxWordsTolerance {
+		if wordCount > ps.MaxWordsTolerance {
 			// Try to split at last space before maxWords
 			splitIdx := -1
 			count := 0
 			for j := range currentParagraph {
 				count++
-				if count == ToolToolOptions.MaxWords {
+				if count == ps.MaxWords {
 					splitIdx = j
 					break
 				}
 			}
 			if splitIdx == -1 {
-				splitIdx = ToolToolOptions.MaxWords
+				splitIdx = ps.MaxWords
 			}
 			ps.addParagraph(strings.Join(currentParagraph[:splitIdx], " "))
 			currentParagraph = currentParagraph[splitIdx:]
