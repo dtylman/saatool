@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"os"
 
@@ -26,5 +27,9 @@ func main() {
 	}
 	actions.AddAction(cmd, "import", &actions.EPubImportAction{})
 	actions.AddAction(cmd, "import", &actions.PDFImportAction{})
-	cmd.Run(context.Background(), os.Args)
+	err := cmd.Run(context.Background(), os.Args)
+	if err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
 }

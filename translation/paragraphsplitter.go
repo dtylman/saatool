@@ -1,4 +1,4 @@
-package actions
+package translation
 
 import (
 	"regexp"

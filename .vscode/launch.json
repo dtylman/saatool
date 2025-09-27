@@ -19,10 +19,13 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/saatooltool",
             "args": [
-                "-details=false",
-                "-in=${workspaceFolder}/cmd/saatooltool/luciper.epub",
-                "-to=hebrew"
-            ]
+                //import pdf --input ~/Documents/huji/13246/1_Shaye_J_D_Cohen_The_Conversion_of_Antoni.pdf --from english --to hebrew  
+                "import",
+                "pdf",
+                "--input", "/home/danny/Documents/huji/13246/1_Shaye_J_D_Cohen_The_Conversion_of_Antoni.pdf",
+                "--from=english",
+                "--to=hebrew"
+            ]             
         }
     ]
 }

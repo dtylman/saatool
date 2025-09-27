@@ -201,7 +201,7 @@ func (ec *EPubImportAction) processItem(item epub.Itemref, maxWords, maxWordsTol
 
 	text = removeEmptyLines(text)
 
-	splitter := NewParagraphSplitter(maxWords, maxWordsTolerance, stripToAscii)
+	splitter := translation.NewParagraphSplitter(maxWords, maxWordsTolerance, stripToAscii)
 
 	paragraphs := splitter.Split(text)
 	for _, paragraph := range paragraphs {
