@@ -13,56 +13,19 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+type TextBlock struct {
+	Text          string
+	totalFontSize float64
+	items         int
+}
+
+func (t *TextBlock) deltaY(t pdf.Text) float64 {
+
+}
+
 // PDFImportAction represents the action to import a PDF file
 type PDFImportAction struct {
 	textBlocks []TextBlock
-}
-
-// TextBlock represents a block of text in the PDF
-type TextBlock struct {
-	Text          string
-	count         int
-	totalFontSize float64
-
-	x, y          float64
-	width, height float64
-}
-
-func newTextBlock(t pdf.Text) *TextBlock {
-	return &TextBlock{
-		Text:          t.S,
-		count:         1,
-		totalFontSize: math.Abs(t.FontSize),
-		x:             t.X,
-		y:             t.Y,
-		width:         t.W,
-		height:        math.Abs(t.FontSize),
-	}
-}
-
-// addText adds a text element to the block and updates its bounding box
-func (tb *TextBlock) addText(t pdf.Text) {
-	tb.Text += t.S
-	tb.count++
-	tb.totalFontSize += math.Abs(t.FontSize)
-}
-
-func (tb *TextBlock) avgFontSize() float64 {
-	if tb.count == 0 {
-		return 0
-	}
-	return tb.totalFontSize / float64(tb.count)
-}
-
-// contains checks if the point (x, y) is within the block's bounding box with a threshold
-func (tb *TextBlock) contains(x, y float64) bool {
-	xThreshold := tb.avgFontSize() * 2
-	yThreshold := tb.avgFontSize() * 2
-	minX := tb.x - xThreshold
-	maxX := tb.x + tb.width + xThreshold
-	minY := tb.y - yThreshold
-	maxY := tb.y + tb.height + yThreshold
-	return x >= minX && x <= maxX && y >= minY && y <= maxY
 }
 
 // Name returns the name of the action
@@ -198,6 +161,13 @@ func (a *PDFImportAction) Action(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
+func (a *PDFImportAction) getLastBlock(t pdf.Text) *TextBlock {
+	if len(a.textBlocks) == 0 {
+		a.textBlocks = append(a.textBlocks, TextBlock{})
+	}
+	return &a.textBlocks[len(a.textBlocks)-1]
+}
+
 func (a *PDFImportAction) createProject(ctx context.Context, input string, cmd *cli.Command) error {
 	file, reader, err := pdf.Open(input)
 	if err != nil {
@@ -210,53 +180,33 @@ func (a *PDFImportAction) createProject(ctx context.Context, input string, cmd *
 
 	texts := p.Content().Text
 
-	maxHeight := 0.0
-	maxWidth := 0.0
-	for i, t := range texts {
-		h := math.Abs(t.FontSize) + t.Y
-		if h > maxHeight {
-			maxHeight = h
+	text := ""
+	totalFontSize := 0.0
+	numFonts := 0
+	lastY := -1.0
+	for _, t := range texts {
+
+		deltaY := math.Abs(t.Y - lastY)
+		if deltaY > 2.0 {
+			log.Printf("New line detected at Y=%.2f (last Y=%.2f), inserting line break", t.Y, lastY)
+			text += "\n"
+			lastY = t.Y
 		}
-		if t.W == 0.0 {
-			t.W = math.Abs(t.FontSize) * 0.6 * float64(len(t.S))
-			texts[i] = t
+		numFonts++
+		totalFontSize += math.Abs(t.FontSize)
+		averageFontSize := float64(totalFontSize) / float64(numFonts)
+		fontDelta := math.Abs(t.FontSize) - averageFontSize
+		if fontDelta > 2.0 {
+			log.Printf("Font size change detected: %.2f -> %.2f (delta %.2f), inserting line break", averageFontSize, t.FontSize, fontDelta)
+			text += "\n"
+			numFonts = 0
+			totalFontSize = 0.0
 		}
-		if t.X+t.W > maxWidth {
-			maxWidth = t.X + t.W
-		}
+		text += t.S
 	}
 
-	for i, t := range texts {
-		// invert the Y coordinate
-		t.Y = maxHeight - t.Y
-		texts[i] = t
-		a.addTextBlock(t)
-	}
-
-	for i, tb := range a.textBlocks {
-		fmt.Printf("Block %d: (x=%.2f,y=%.2f,w=%.2f,h=%.2f,fs=%.2f) %s\n", i, tb.x, tb.y, tb.width, tb.height, tb.avgFontSize(), tb.Text)
-	}
+	fmt.Println(text)
 	return nil
-}
-
-func (a *PDFImportAction) findBlock(t pdf.Text) *TextBlock {
-	for i, tb := range a.textBlocks {
-		if tb.contains(t.X, t.Y) {
-			return &a.textBlocks[i] // return pointer to the block in the slice
-		}
-	}
-	return nil
-}
-
-func (a *PDFImportAction) addTextBlock(t pdf.Text) {
-	fmt.Println(t.X, t.Y, t.X+t.W, t.Y+math.Abs(t.FontSize), t.S)
-	block := a.findBlock(t)
-	if block != nil {
-		block.addText(t)
-		return
-	}
-	block = newTextBlock(t)
-	a.textBlocks = append(a.textBlocks, *block)
 }
 
 // needsOCR checks if the PDF file likely needs OCR by analyzing its content.
