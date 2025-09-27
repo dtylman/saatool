@@ -317,6 +317,10 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 			"data":        string(jsonData),
 		})
 
+	if err != nil {
+		return fmt.Errorf("failed to create user prompt: %v", err)
+	}
+
 	request := deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.ChatCompletionMessage{
