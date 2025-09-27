@@ -1,0 +1,92 @@
+package ai
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+
+	deepseek "github.com/cohesion-org/deepseek-go"
+	"github.com/dtylman/saatool/config"
+	"github.com/dtylman/saatool/translation"
+)
+
+// OCRInputText represents a piece of text extracted via OCR along with its font size.
+type OCRInputText struct {
+	Text     string  `json:"text"`
+	FontSize float64 `json:"font_size,omitempty"`
+}
+
+// OCRRequest represents a request to clean OCR text using DeepSeek.
+type OCRRequest struct {
+	Title     string                  `json:"title"`
+	Author    string                  `json:"author"`
+	Synopsis  string                  `json:"synopsis"`
+	Genre     string                  `json:"genre"`
+	Page      int                     `json:"page"`
+	OCRTexts  []OCRInputText          `json:"ocr_texts"`
+	Header    string                  `json:"header"`
+	Body      []translation.Paragraph `json:"body"`
+	Footer    string                  `json:"footer"`
+	FootNotes string                  `json:"footnotes"`
+	Comments  string                  `json:"comments"`
+}
+
+// OCRCleaner is responsible for cleaning OCR text using the DeepSeek API.
+type OCRCleaner struct {
+	client *deepseek.Client
+}
+
+// NewOCRCleaner creates a new instance of OCRCleaner with a DeepSeek client.
+func NewOCRCleaner() *OCRCleaner {
+	client := deepseek.NewClient(config.Options.DeepSeekAPIKey)
+	return &OCRCleaner{client: client}
+}
+
+// CleanOCR sends the OCR text to DeepSeek for cleaning and formatting.
+func (oc *OCRCleaner) CleanOCR(ctx context.Context, request *OCRRequest) (*OCRRequest, error) {
+	log.Printf("Sending OCR cleaning request to DeepSeek for page %d", request.Page)
+
+	data, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal OCR request: %w", err)
+	}
+
+	resp, err := oc.client.CreateChatCompletion(ctx, &deepseek.ChatCompletionRequest{
+		Model: deepseek.DeepSeekChat,
+		Messages: []deepseek.ChatCompletionMessage{
+			{
+				Role:    deepseek.ChatMessageRoleSystem,
+				Content: "You are an expert text cleaner. Your task is to clean up OCR text extracted from scanned documents. Remove any artifacts, correct common OCR errors, and format the text into coherent paragraphs. Ensure that the cleaned text maintains the original meaning and context. The OCR text may include headers, footers, and body text. Separate these sections clearly in your output. Any comments or notes should be included in a separate 'comments' field.",
+			},
+			{
+				Role: deepseek.ChatMessageRoleUser,
+				Content: `Clean the following OCR text from a scanned document. Please fill in the 'header', 'body', 'footer', and 'footnotes' fields appropriately.
+				The 'body' should be an array of paragraphs with each paragraph as an object containing 'id' and 'text'. The 'id' should be a unique identifier for the paragraph, but you can just enter any string there (I'll fix that later). The 'header', 'footer' and 'footnotes' should be plain text string. They be empty if not applicable. If you have any comments about the text, include them in the 'comments' field, which is a plain text string.
+				The text is provided in JSON format:\n\n` + string(data),
+			},
+		},
+		JSONMode: true,
+	})
+
+	if resp == nil && err == nil {
+		return nil, errors.New("no response from DeepSeek")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Choices) == 0 {
+		return nil, errors.New("no choices in DeepSeek response")
+	}
+
+	fmt.Println("DeepSeek response:", resp.Choices[0].Message.Content)
+
+	var ocrResult OCRRequest
+	extractor := deepseek.NewJSONExtractor(nil)
+	err = extractor.ExtractJSON(resp, &ocrResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract JSON from DeepSeek response: %w", err)
+	}
+	return &ocrResult, nil
+}

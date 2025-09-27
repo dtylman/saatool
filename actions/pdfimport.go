@@ -9,23 +9,16 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/dtylman/saatool/ai"
+	"github.com/dtylman/saatool/config"
+	"github.com/dtylman/saatool/translation"
 	"github.com/ledongthuc/pdf"
 	"github.com/urfave/cli/v3"
 )
 
-type TextBlock struct {
-	Text          string
-	totalFontSize float64
-	items         int
-}
-
-func (t *TextBlock) deltaY(t pdf.Text) float64 {
-
-}
-
 // PDFImportAction represents the action to import a PDF file
 type PDFImportAction struct {
-	textBlocks []TextBlock
+	project *translation.Project
 }
 
 // Name returns the name of the action
@@ -44,26 +37,8 @@ func (a *PDFImportAction) Flags() []cli.Flag {
 		&cli.StringFlag{
 			Name:     "input",
 			Aliases:  []string{"i"},
-			Usage:    "Input EPUB file",
+			Usage:    "Input PDF file",
 			Required: true,
-		},
-		&cli.IntFlag{
-			Name:    "max-words",
-			Aliases: []string{"m"},
-			Usage:   "Maximum words per paragraph before considering a split",
-			Value:   200,
-		},
-		&cli.IntFlag{
-			Name:    "max-words-tolerance",
-			Aliases: []string{"t"},
-			Usage:   "Maximum words per paragraph before forcing a split",
-			Value:   300,
-		},
-		&cli.BoolFlag{
-			Name:    "strip-to-ascii",
-			Aliases: []string{"s"},
-			Usage:   "Strip non-ASCII characters from the text",
-			Value:   false,
 		},
 		&cli.StringFlag{
 			Name:     "from",
@@ -91,6 +66,51 @@ func (a *PDFImportAction) Flags() []cli.Flag {
 			Usage:   "Languages for OCR, comma separated (e.g. eng,pol)",
 			Value:   "eng",
 		},
+		&cli.Float64Flag{
+			Name:    "font-delta",
+			Aliases: []string{"fd"},
+			Usage:   "Font size delta to consider a new text block",
+			Value:   15.00,
+		},
+		&cli.Float64Flag{
+			Name:    "y-delta",
+			Aliases: []string{"yd"},
+			Usage:   "Y position delta to consider a new text block, if -1, use 2x average font size",
+			Value:   -1.0,
+		},
+		&cli.StringFlag{
+			Name:     "author",
+			Aliases:  []string{"a"},
+			Usage:    "Author of the document",
+			Value:    "",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "title",
+			Aliases:  []string{"t"},
+			Usage:    "Title of the document",
+			Value:    "",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "synopsis",
+			Aliases:  []string{"s"},
+			Usage:    "Synopsis of the document",
+			Value:    "",
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:    "details",
+			Aliases: []string{"d"},
+			Usage:   "Get book details from DeepSeek",
+			Value:   true,
+		},
+		&cli.IntFlag{
+			Name:    "skip-pages",
+			Aliases: []string{"p"},
+			Usage:   "Number of pages to skip from the start",
+			Value:   0,
+		},
 	}
 }
 
@@ -105,6 +125,8 @@ func (a *PDFImportAction) Action(ctx context.Context, cmd *cli.Command) error {
 	if _, err := os.Stat(input); os.IsNotExist(err) {
 		return fmt.Errorf("input file does not exist: %s", input)
 	}
+
+	config.Options.DeepSeekAPIKey = cmd.String("key")
 
 	needOCR := cmd.Bool("ocr")
 	if !needOCR {
@@ -122,90 +144,148 @@ func (a *PDFImportAction) Action(ctx context.Context, cmd *cli.Command) error {
 		fmt.Printf("OCR completed, new file: %s\n", input)
 	}
 
-	return a.createProject(ctx, input, cmd)
+	err = a.createProject(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
 
-	// totalPage := reader.NumPage()
+	if a.project == nil {
+		return fmt.Errorf("project is nil")
+	}
 
-	// texts, err := reader.GetStyledTexts()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to extract text from PDF: %w", err)
-	// }
+	err = a.processPDFFile(ctx, input, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to process PDF file: %w", err)
+	}
 
-	// markdown := ""
+	a.project.Normalize()
 
-	// for _, text := range texts {
+	fileName, err := a.project.Save()
+	if err != nil {
+		return fmt.Errorf("failed to save project: %w", err)
+	}
 
-	// 	if text.FontSize > 20 {
-	// 		markdown += "# "
-	// 	} else if text.FontSize > 15 {
-	// 		markdown += "## "
-	// 	} else if text.FontSize > 12 {
-	// 		markdown += "### "
-	// 	}
-	// 	markdown += text.S
-	// }
-
-	// fmt.Printf("Total pages: %d\n", totalPage)
-	// fmt.Printf("Extracted text length: %d\n", len(markdown))
-
-	// fmt.Println(markdown)
-	// sentences, err := reader.GetStyledTexts()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to extract text from PDF: %w", err)
-	// }
-
-	// for _, s := range sentences {
-
-	// }
+	log.Printf("Project saved to %s", fileName)
 
 	return nil
 }
 
-func (a *PDFImportAction) getLastBlock(t pdf.Text) *TextBlock {
-	if len(a.textBlocks) == 0 {
-		a.textBlocks = append(a.textBlocks, TextBlock{})
-	}
-	return &a.textBlocks[len(a.textBlocks)-1]
-}
-
-func (a *PDFImportAction) createProject(ctx context.Context, input string, cmd *cli.Command) error {
+func (a *PDFImportAction) processPDFFile(ctx context.Context, input string, cmd *cli.Command) error {
+	log.Printf("Processing PDF file: %s\n", input)
 	file, reader, err := pdf.Open(input)
 	if err != nil {
 		return fmt.Errorf("failed to open PDF file: %w", err)
 	}
 	defer file.Close()
 
-	// pages := reader.NumPage()
-	p := reader.Page(2)
-
-	texts := p.Content().Text
-
-	text := ""
-	totalFontSize := 0.0
-	numFonts := 0
-	lastY := -1.0
-	for _, t := range texts {
-
-		deltaY := math.Abs(t.Y - lastY)
-		if deltaY > 2.0 {
-			log.Printf("New line detected at Y=%.2f (last Y=%.2f), inserting line break", t.Y, lastY)
-			text += "\n"
-			lastY = t.Y
+	skipPages := cmd.Int("skip-pages")
+	pages := reader.NumPage()
+	for i := skipPages; i <= pages; i++ {
+		p := reader.Page(i)
+		if p.V.IsNull() {
+			continue
 		}
-		numFonts++
-		totalFontSize += math.Abs(t.FontSize)
-		averageFontSize := float64(totalFontSize) / float64(numFonts)
-		fontDelta := math.Abs(t.FontSize) - averageFontSize
-		if fontDelta > 2.0 {
-			log.Printf("Font size change detected: %.2f -> %.2f (delta %.2f), inserting line break", averageFontSize, t.FontSize, fontDelta)
-			text += "\n"
-			numFonts = 0
-			totalFontSize = 0.0
+		err := a.processPage(ctx, cmd, &p, i)
+		if err != nil {
+			return fmt.Errorf("failed to process page %d: %w", i, err)
 		}
-		text += t.S
 	}
 
-	fmt.Println(text)
+	return nil
+}
+
+func (a *PDFImportAction) processPage(ctx context.Context, cmd *cli.Command, p *pdf.Page, pageNum int) error {
+	log.Printf("Processing page %d", pageNum)
+
+	fontDelta := cmd.Float64("font-delta")
+	yDelta := cmd.Float64("y-delta")
+
+	rt := newRawText(fontDelta, yDelta)
+
+	if p.V.IsNull() {
+		return nil
+	}
+
+	for _, text := range p.Content().Text {
+		rt.addText(text)
+	}
+
+	req := ai.OCRRequest{
+		Page:     pageNum,
+		OCRTexts: make([]ai.OCRInputText, 0),
+		Title:    a.project.Title,
+		Author:   a.project.Author,
+		Synopsis: a.project.Synopsis,
+		Genre:    a.project.Genre,
+	}
+
+	// Process the raw text blocks
+	for _, block := range rt.Blocks {
+		req.OCRTexts = append(req.OCRTexts, ai.OCRInputText{
+			Text:     block.Text,
+			FontSize: block.FontSize,
+		})
+	}
+
+	ocrCleaner := ai.NewOCRCleaner()
+	result, err := ocrCleaner.CleanOCR(ctx, &req)
+	if err != nil {
+		return fmt.Errorf("failed to clean OCR text: %w", err)
+	}
+
+	log.Printf("got %d paragraphs from OCR cleaner", len(result.Body))
+
+	for _, para := range result.Body {
+		sourceParagraph := translation.Paragraph{
+			Text: para.Text,
+		}
+		a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, sourceParagraph)
+	}
+
+	if result.FootNotes != "" {
+		sourceParagraph := translation.Paragraph{
+			Text: "--------\n" + result.FootNotes,
+		}
+		a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, sourceParagraph)
+	}
+
+	return nil
+}
+
+func (a *PDFImportAction) createProject(ctx context.Context, cmd *cli.Command) error {
+	title := cmd.String("title")
+	if strings.TrimSpace(title) == "" {
+		return fmt.Errorf("title is required")
+	}
+	a.project = translation.NewProject(title)
+	a.project.Title = title
+	a.project.Author = cmd.String("author")
+	a.project.Synopsis = cmd.String("synopsis")
+
+	// set source and target languages
+	from := cmd.String("from")
+	to := cmd.String("to")
+
+	a.project.Source.Language = from
+	a.project.Target.Language = to
+
+	if !cmd.Bool("details") {
+		return nil
+	}
+
+	translator, err := ai.NewTranslator(a.project)
+	if err != nil {
+		return fmt.Errorf("failed to create translator: %w", err)
+	}
+	bookDetails, err := translator.GetBookDetails(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get book details: %w", err)
+	}
+	a.project.Title = bookDetails.Title
+	a.project.Author = bookDetails.Author
+	a.project.Synopsis = bookDetails.Synopsis
+	a.project.Genre = bookDetails.Genre
+
 	return nil
 }
 
@@ -277,5 +357,77 @@ func (a *PDFImportAction) runOCR(fileName string, ctx context.Context, cmd *cli.
 		return "", fmt.Errorf("failed to run ocrmypdf: %w", err)
 	}
 	return outputFile, nil
+
+}
+
+type RawTextBlock struct {
+	Text     string
+	FontSize float64
+}
+
+type RawText struct {
+	Blocks        []RawTextBlock
+	lastY         float64
+	totalFonts    int
+	totalFontSize float64
+	fontDelta     float64
+	yDelta        float64
+}
+
+func newRawText(fontDelta float64, yDelta float64) *RawText {
+	rt := RawText{
+		Blocks:    make([]RawTextBlock, 0),
+		fontDelta: fontDelta,
+		yDelta:    yDelta,
+	}
+	rt.pushBlock()
+	return &rt
+
+}
+
+func (rt *RawText) getYDelta() float64 {
+	if rt.yDelta == -1 {
+		return rt.averageFontSize(nil) * 2
+	}
+	return rt.yDelta
+}
+
+func (rt *RawText) averageFontSize(t *pdf.Text) float64 {
+	if rt.totalFonts == 0 {
+		if t != nil {
+			return math.Abs(t.FontSize)
+		}
+		return 0.0
+	}
+	return rt.totalFontSize / float64(rt.totalFonts)
+}
+
+func (rt *RawText) addText(t pdf.Text) {
+	deltaY := math.Abs(t.Y - rt.lastY)
+	fontSize := math.Abs(t.FontSize)
+	fontDelta := math.Abs(fontSize - rt.averageFontSize(&t))
+	if deltaY > rt.getYDelta() {
+		// new block
+		rt.pushBlock()
+	} else if fontDelta > rt.fontDelta {
+		// new block
+		rt.pushBlock()
+	}
+	// append to last block
+	lastBlock := &rt.Blocks[len(rt.Blocks)-1]
+	lastBlock.Text += t.S
+	rt.lastY = t.Y
+	rt.totalFonts++
+	rt.totalFontSize += fontSize
+}
+
+func (rt *RawText) pushBlock() {
+	if len(rt.Blocks) > 0 {
+		lastBlock := &rt.Blocks[len(rt.Blocks)-1]
+		lastBlock.FontSize = rt.averageFontSize(nil)
+	}
+	rt.Blocks = append(rt.Blocks, RawTextBlock{})
+	rt.totalFonts = 0
+	rt.totalFontSize = 0
 
 }

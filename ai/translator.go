@@ -79,7 +79,7 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 		JSONMode: true,
 	})
 
-	if resp == nil {
+	if resp == nil && err == nil {
 		return nil, errors.New("received nil response from DeepSeek API")
 	}
 	if err != nil {
