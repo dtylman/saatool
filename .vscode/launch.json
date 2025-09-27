@@ -25,7 +25,6 @@
                 "--input", "/home/danny/Documents/huji/13246/1_Shaye_J_D_Cohen_The_Conversion_of_Antoni.pdf",
                 "--from=english",
                 "--to=hebrew",
-                "--key=sk-5526c0da307f4b148cdd0ada679fc00f"
             ]             
         }
     ]
