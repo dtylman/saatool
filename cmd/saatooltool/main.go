@@ -7,13 +7,14 @@ import (
 	"os"
 
 	"github.com/dtylman/saatool/actions"
+	"github.com/dtylman/saatool/config"
 	"github.com/urfave/cli/v3"
 )
 
 func main() {
 	cmd := &cli.Command{
 		Name:     "saatool",
-		Version:  "0.1.0",
+		Version:  config.Version,
 		Usage:    "saatool - a tool for working with translation projects",
 		Commands: []*cli.Command{},
 		Flags: []cli.Flag{

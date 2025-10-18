@@ -33,11 +33,9 @@ go.work.sum
 cmd/saatool/saatool
 *.apk
 cmd/saatool/__debug*
-
 cmd/saatooltool/saatooltool
-luciper.json
-cmd/saatooltool/luciper.epub
 cmd/saatooltool/projects/
 
-cmd/saatooltool/PIIS0022030273853585.pdf
+
 .vscode/launch.json
+build/*

@@ -72,7 +72,7 @@ func NewMainWindow() error {
 		fyneApp: app.New(),
 		window:  nil,
 		toolBar: container.NewGridWrap(fyne.NewSize(100, 50)),
-		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v-%v", app.New().Metadata().Version, app.New().Metadata().Build)),
+		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v", config.Version)),
 	}
 
 	return nil
