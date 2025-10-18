@@ -17,12 +17,11 @@ SAATool is an Android application designed for automated translation of EPUB boo
 
 ### Workflow Overview
 
-1. **Convert EPUB to SPZ**: Use `saatooltool` to convert an EPUB file into a SAATool Project (`.spz`) file
+1. **Convert to SPZ**: Use `saatooltool` to convert EPUB or PDF files into SAATool Project (`.spz`) files
 2. **Import Project**: Load the `.spz` file into the Android app
 3. **Configure Translation**: Set up source and target languages, add DeepSeek API key
 4. **Read & Translate**: The app automatically translates paragraphs as you read them
-5. **Export**: Export the completed translation back to a `.spz` file
-6. **Convert to EPUB**: Use `saatooltool` to convert the translated `.spz` back to EPUB format
+5. **Export**: Export the completed translation as a `.spz` file from the Android app
 
 ### Translation Features
 
@@ -50,11 +49,25 @@ SAATool is an Android application designed for automated translation of EPUB boo
 
 #### Step 1: Prepare Your Book
 
-Use the `saatooltool` command-line utility to convert your EPUB:
+Use the `saatooltool` command-line utility to convert your EPUB or PDF:
 
+**For EPUB files:**
 ```bash
-./saatooltool -in "your_book.epub" -from "english" -to "hebrew" -details=true
+./saatooltool import epub -i "your_book.epub" -f "english" -o "hebrew" --details --deepseek-api-key "your_key"
 ```
+
+**For PDF files:**
+```bash
+./saatooltool import pdf -i "document.pdf" -f "english" -o "hebrew" -a "Author Name" -t "Document Title" --deepseek-api-key "your_key"
+```
+
+**Available options:**
+- `--max-words` / `-m`: Maximum words per paragraph before considering a split (default: 200)
+- `--max-words-tolerance` / `-t`: Maximum words per paragraph before forcing a split (default: 300)
+- `--strip-to-ascii` / `-s`: Strip non-ASCII characters from text
+- `--details` / `-d`: Use AI to get detailed book information (default: true)
+- `--ocr` / `-c`: Force OCR for PDF files even if text is detected
+- `--ocr-langs` / `-l`: Languages for OCR (e.g. "eng,pol")
 
 This creates a `.spz` file ready for import.
 
@@ -85,15 +98,13 @@ This creates a `.spz` file ready for import.
 4. Use the language toggle to switch between source and translated text
 5. Use "Fix" button to re-translate problematic paragraphs
 
-#### Step 5: Export and Convert
+#### Step 5: Export Project
 
-1. When finished, export the project using the export button
-2. Transfer the `.spz` file back to your computer
-3. Use `saatooltool` to convert back to EPUB:
+1. When finished, export the project using the export button in the Android app
+2. This saves the translated project as a `.spz` file
+3. Transfer the `.spz` file back to your computer
 
-```bash
-./saatooltool -in "translated_project.spz" -out "translated_book.epub"
-```
+**Note:** Converting SPZ back to EPUB format is currently only supported through the Android app's export functionality. CLI export functionality is planned for future releases.
 
 ### Screenshots
 
@@ -104,148 +115,7 @@ This creates a `.spz` file ready for import.
 
 ## Development
 
-### Prerequisites
-
-- Go 1.24 or later
-- Fyne framework
-- Android SDK (for building APK)
-- Git
-
-### Required Dependencies
-
-#### System Dependencies (Ubuntu/Debian)
-```bash
-sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libxkbcommon-dev
-```
-
-#### Go Dependencies
-```bash
-go get fyne.io/fyne/v2@latest
-go install fyne.io/tools/cmd/fyne@latest
-```
-
-#### Android Development
-```bash
-# Install Android SDK
-# Set environment variables:
-export ANDROID_HOME=$HOME/Android/Sdk
-export ANDROID_NDK_HOME=$HOME/Android/Sdk/ndk/29.0.13846066
-export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
-```
-
-### Building the Project
-
-#### Desktop Application (for testing)
-```bash
-cd cmd/saatool
-go build
-./saatool
-```
-
-#### Command Line Tool
-```bash
-cd cmd/saatooltool
-go build
-./saatooltool -help
-```
-
-#### Android APK
-```bash
-# Using the build script
-./package.sh
-
-# Or manually with fyne
-cd cmd/saatool
-fyne package --target android/arm64 --app-id org.saatool.app --icon icon.png --name "SAATool"
-```
-
-#### CI/CD Build
-The project includes GitHub Actions workflow that automatically builds APKs for both ARM64 and AMD64 architectures.
-
-### Project Structure
-
-```
-saatool/
-├── ai/                     # AI translation logic
-│   ├── translator.go       # Main translation engine
-│   ├── bookdetails.go      # Book metadata handling
-│   ├── prompts.go          # AI prompts management
-│   └── stats.go            # Translation statistics
-├── cmd/
-│   ├── saatool/            # Main Android app
-│   │   ├── main.go         # App entry point
-│   │   ├── icon.png        # App icon
-│   │   └── FyneApp.toml    # App metadata
-│   └── saatooltool/        # Command line converter
-│       ├── main.go         # CLI entry point
-│       ├── epubconverter.go # EPUB processing
-│       └── paragraphsplitter.go # Text processing
-├── config/                 # Configuration management
-│   ├── options.go          # App settings
-│   ├── projects.go         # Project file handling
-│   └── fs.go               # File system utilities
-├── translation/            # Core translation logic
-│   ├── project.go          # Project data structures
-│   ├── direction.go        # Text direction handling
-│   └── fyne.go             # UI integration
-└── ui/                     # User interface
-    ├── mainwindow.go       # Main application window
-    ├── translationview.go  # Translation reading interface
-    ├── projectsview.go     # Project management
-    ├── settingsview.go     # Settings configuration
-    └── widgets/            # Custom UI components
-```
-
-### Key Technologies
-
-- **[Fyne](https://fyne.io/)**: Cross-platform UI framework for Go
-- **[DeepSeek API](https://platform.deepseek.com)**: AI translation service
-- **[GoReader](https://github.com/taylorskalyo/goreader)**: EPUB file processing
-- **[html2text](https://github.com/jaytaylor/html2text)**: HTML to text conversion
-
-### Development Guidelines
-
-#### Code Style
-- Follow standard Go formatting (`go fmt`)
-- Use meaningful variable and function names
-- Add comments for exported functions and complex logic
-- Maintain thread safety for concurrent operations
-
-#### Translation Logic
-- All translation operations should be asynchronous
-- Use proper error handling and user feedback
-- Maintain translation state and progress tracking
-- Implement proper cleanup for incomplete translations
-
-#### UI Guidelines
-- Use Fyne's responsive design principles
-- Implement proper navigation and user feedback
-- Support both touch and keyboard interactions
-- Maintain consistent theming and icons
-
-#### Testing
-```bash
-# Run tests
-go test ./...
-
-# Test specific package
-go test ./translation
-```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-### Build Configuration
-
-The app metadata is managed in `cmd/saatool/FyneApp.toml`:
-- Version and build numbers are automatically extracted during CI builds
-- App ID and name are configured for proper Android packaging
-- The build process creates APKs for both ARM64 and AMD64 architectures
+For development setup, building instructions, and contribution guidelines, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## License
 
