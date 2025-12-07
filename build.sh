@@ -37,10 +37,30 @@ if [[ -z "$ANDROID_HOME" ]]; then
     export ANDROID_HOME="$HOME/Android/Sdk"
     print_status "ANDROID_HOME not set, defaulting to $ANDROID_HOME"
 fi
+
+# Set Android NDK path - try to find the latest installed version
 if [[ -z "$ANDROID_NDK_HOME" ]]; then
-    export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.13846066"
-    print_status "ANDROID_NDK_HOME not set, defaulting to $ANDROID_NDK_HOME"
+    # Try to find NDK in common locations
+    if [[ -d "$ANDROID_HOME/ndk" ]]; then
+        # Find the latest NDK version
+        LATEST_NDK=$(ls -1 "$ANDROID_HOME/ndk" | sort -V | tail -n 1)
+        if [[ -n "$LATEST_NDK" ]]; then
+            export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$LATEST_NDK"
+            print_status "Found NDK version $LATEST_NDK at $ANDROID_NDK_HOME"
+        else
+            print_warning "No NDK versions found in $ANDROID_HOME/ndk"
+        fi
+    elif [[ -d "$ANDROID_HOME/ndk-bundle" ]]; then
+        export ANDROID_NDK_HOME="$ANDROID_HOME/ndk-bundle"
+        print_status "Using legacy NDK bundle at $ANDROID_NDK_HOME"
+    else
+        print_warning "Android NDK not found. Android build may fail."
+        print_warning "Install NDK via Android Studio or set ANDROID_NDK_HOME manually"
+    fi
+else
+    print_status "Using existing ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 fi
+
 export PATH="$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools"
 
 # Add Android NDK to PATH
@@ -68,10 +88,20 @@ print_status "Project version: $PROJECT_VERSION"
 print_status "Building CLI tool (saatooltool)..."
 cd cmd/saatooltool
 
+# Build Linux/macOS version
 if go build -o "../../$BUILD_DIR/saatooltool"; then
-    print_success "CLI tool built successfully"
+    print_success "CLI tool (Linux/macOS) built successfully"
 else
-    print_error "Failed to build CLI tool"
+    print_error "Failed to build CLI tool (Linux/macOS)"
+    exit 1
+fi
+
+# Build Windows version
+print_status "Building CLI tool for Windows..."
+if GOOS=windows GOARCH=amd64 go build -o "../../$BUILD_DIR/saatooltool.exe"; then
+    print_success "CLI tool (Windows) built successfully"
+else
+    print_error "Failed to build CLI tool (Windows)"
     exit 1
 fi
 
@@ -173,6 +203,7 @@ ln -sf "$APP_NAME-amd64.apk" "$BUILD_DIR/saatool-latest-amd64.apk"
 print_success "Build completed successfully!"
 print_status "Build artifacts:"
 print_status "  CLI tool: $BUILD_DIR/saatooltool"
+print_status "  CLI tool (Windows): $BUILD_DIR/saatooltool.exe"
 print_status "  Desktop: $BUILD_DIR/saatool-desktop"
 print_status "  Android ARM64: $BUILD_DIR/$APP_NAME-arm64.apk"
 print_status "  Android AMD64: $BUILD_DIR/$APP_NAME-amd64.apk"

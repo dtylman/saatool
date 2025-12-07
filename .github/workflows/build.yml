@@ -22,7 +22,15 @@ jobs:
         go install fyne.io/tools/cmd/fyne@latest
 
     - name: Setup Android SDK Tools
-      uses: android-actions/setup-android@v3.2.1  
+      uses: android-actions/setup-android@v3.2.1
+      with:
+        api-level: 34
+        target: google_apis
+        arch: x86_64
+        
+    - name: Install Android NDK
+      run: |
+        sdkmanager --install "ndk;25.1.8937393"  
 
     - name: Test Everything is installed
       run: |
@@ -56,24 +64,22 @@ jobs:
 
     - name: Create Git tag
       run: |
-        VERSION=${{ steps.version.outputs.VERSION }}
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git tag -a "v${VERSION}" -m "Release version ${VERSION}"
-        git push origin "v${VERSION}"
+        git tag -a "v${{ env.VERSION }}" -m "Release version ${{ env.VERSION }}"
+        git push origin "v${{ env.VERSION }}"
 
     - name: Generate changelog from commits
       id: changelog
       run: |
         # Get the previous tag to generate changelog from
         PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-        VERSION=${{ steps.version.outputs.VERSION }}
         
         if [ -z "$PREVIOUS_TAG" ]; then
           echo "No previous tag found, generating changelog from all commits"
           CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
         else
-          echo "Generating changelog from $PREVIOUS_TAG to v$VERSION"
+          echo "Generating changelog from $PREVIOUS_TAG to v${{ env.VERSION }}"
           CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
         fi
         
@@ -86,10 +92,21 @@ jobs:
     - name: Create Release
       uses: ncipollo/release-action@v1
       with:
-        tag: v${{ steps.version.outputs.VERSION }}
-        name: Release v${{ steps.version.outputs.VERSION }}
+        tag: v${{ env.VERSION }}
+        name: Release v${{ env.VERSION }}
         body: |
-          ## Changes in v${{ steps.version.outputs.VERSION }}
+          ## Changes in v${{ env.VERSION }}
           
           ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## Downloads
+          - **SAATool CLI (Windows)**: `saatooltool.exe` - Command-line tool for EPUB ↔ SPZ conversion on Windows
+          - **SAATool CLI (Linux/macOS)**: `saatooltool` - Command-line tool for EPUB ↔ SPZ conversion on Linux/macOS
+          - **Android App (ARM64)**: `SAATool-arm64.apk` - For real Android devices
+          - **Android App (x86_64)**: `SAATool-amd64.apk` - For Android emulators
+        artifacts: |
+          build/saatooltool.exe
+          build/saatooltool
+          build/SAATool-arm64.apk
+          build/SAATool-amd64.apk
         generateReleaseNotes: false
