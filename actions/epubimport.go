@@ -204,16 +204,58 @@ func (ec *EPubImportAction) processItem(item epub.Itemref, maxWords, maxWordsTol
 	splitter := translation.NewParagraphSplitter(maxWords, maxWordsTolerance, stripToAscii)
 
 	paragraphs := splitter.Split(text)
+	isFirst := true // first non-empty paragraph in this spine item = chapter start
 	for _, paragraph := range paragraphs {
 		if strings.TrimSpace(paragraph) == "" {
 			continue
 		}
 		p := translation.Paragraph{
-			Text: paragraph,
+			Text:           paragraph,
+			IsChapterStart: isFirst,
 		}
+		isFirst = false
 		ec.project.Source.Paragraphs = append(ec.project.Source.Paragraphs, p)
 	}
 	return nil
+}
+
+// ImportEPUBFile imports an EPUB file and returns the resulting Project.
+// It uses default paragraph splitting settings (maxWords=200, maxWordsTolerance=300, stripToAscii=false).
+func ImportEPUBFile(fileName, from, to string) (*translation.Project, error) {
+	log.Printf("Converting EPUB file: %v", fileName)
+
+	rc, err := epub.OpenReader(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open EPUB file %s: %w", fileName, err)
+	}
+	defer rc.Close()
+
+	if len(rc.Rootfiles) == 0 {
+		return nil, fmt.Errorf("no root files found in EPUB")
+	}
+
+	_, name := path.Split(fileName)
+	project := translation.NewProject(name)
+	book := rc.Rootfiles[0]
+
+	project.Title = book.Title
+	project.Source.Language = from
+	project.Source.Paragraphs = make([]translation.Paragraph, 0)
+	project.Target.Language = to
+	project.Target.Paragraphs = make([]translation.Paragraph, 0)
+
+	log.Printf("Importing book: %s, language: %s -> %s", project.Title, from, to)
+
+	action := &EPubImportAction{rc: rc, project: project}
+	for _, item := range book.Spine.Itemrefs {
+		err = action.processItem(item, 200, 300, false)
+		if err != nil {
+			return nil, fmt.Errorf("error processing item %s: %w", item.ID, err)
+		}
+	}
+
+	project.Normalize()
+	return project, nil
 }
 
 func removeEmptyLines(text string) string {
