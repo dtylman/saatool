@@ -7,12 +7,13 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/config"
@@ -124,12 +125,14 @@ func (tv *TranslationView) Close() {
 func (tv *TranslationView) Load() {
 	tv.projectSaver.Start()
 	tv.invokeTranslation()
+	Main.AddActionWidget(layout.NewSpacer())
+	Main.AddAction("", theme.SettingsIcon(), tv.toggleOverlay)
 }
 
 // onMainPanelTapped handles tap events on the main panel.
 // Left 30% → previous, Right 30% → next, Center 40% → toggle overlay.
 func (tv *TranslationView) onMainPanelTapped(pe *fyne.PointEvent) {
-	width := tv.txt.Size().Width
+	width := tv.view.Size().Width
 	x := pe.Position.X
 
 	switch {
@@ -143,16 +146,13 @@ func (tv *TranslationView) onMainPanelTapped(pe *fyne.PointEvent) {
 }
 
 // toggleOverlay shows the overlay if hidden, hides it if visible.
-// When shown, it auto-hides after 4 seconds.
 func (tv *TranslationView) toggleOverlay() {
 	if tv.overlay.Visible() {
 		tv.overlay.Hide()
 	} else {
 		tv.overlay.Show()
-		time.AfterFunc(4*time.Second, func() {
-			fyne.Do(tv.overlay.Hide)
-		})
 	}
+	tv.view.Refresh()
 }
 
 // adjustFontSize changes the reading font size by delta points and refreshes the text layout.

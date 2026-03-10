@@ -134,7 +134,10 @@ func (mw *MainWindow) SetContent(content WindowContent) {
 	mw.toolBar = container.NewHBox()
 	backBtn := widget.NewButtonWithIcon("Library", widgets.IconProject, mw.exitReader)
 	themeBtn := widget.NewButtonWithIcon("", widgets.IconTheme, mw.onThemeTapped)
-	topBar := container.NewBorder(nil, nil, backBtn, themeBtn)
+	
+	// Create a right-side container for the theme button and potentially others
+	// We put mw.toolBar in the center, and themeBtn on the right.
+	topBar := container.NewBorder(nil, nil, backBtn, themeBtn, mw.toolBar)
 	layout := container.NewBorder(topBar, nil, nil, nil, content.View())
 	mw.window.SetContent(layout)
 	content.Load()
