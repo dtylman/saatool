@@ -8,9 +8,6 @@ type BookDetails struct {
 	Author         string                  `json:"author"`
 	Synopsis       string                  `json:"synopsis"`
 	Genre          string                  `json:"genre"`
-	// WritingStyle describes the author's narrative voice, tone, and pacing.
-	// E.g. "third-person omniscient, dark and introspective, lyrical prose".
-	WritingStyle   string                  `json:"writing_style"`
 	MainCharacters []translation.Character `json:"main_characters"`
 }
 
@@ -24,7 +21,6 @@ func NewBookDetails(project *translation.Project) *BookDetails {
 		Author:         project.Author,
 		Synopsis:       project.Synopsis,
 		Genre:          project.Genre,
-		WritingStyle:   project.WritingStyle,
 		MainCharacters: project.Characters,
 	}
 }

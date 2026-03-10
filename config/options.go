@@ -20,12 +20,6 @@ var Options struct {
 	TranslationDocSize int `json:"translation_doc_size"`
 	//AutoProofread proofreads translated paragraphs immediately after translation
 	AutoProofread bool `json:"auto_proofread"`
-	//SourceLanguage is the default source language for EPUB imports (e.g. "english")
-	SourceLanguage string `json:"source_language"`
-	//TargetLanguage is the default target language for EPUB imports (e.g. "hebrew")
-	TargetLanguage string `json:"target_language"`
-	//DarkMode enables the dark color theme
-	DarkMode bool `json:"dark_mode"`
 }
 
 func init() {
@@ -35,9 +29,6 @@ func init() {
 	Options.AppSize = 16
 	Options.TranslationDocSize = 3
 	Options.AutoProofread = true
-	Options.SourceLanguage = ""
-	Options.TargetLanguage = ""
-	Options.DarkMode = true
 }
 
 // LoadOptions loads options from the config file, if it exists. Otherwise, defaults are used.
