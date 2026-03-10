@@ -69,7 +69,7 @@ func NewMainWindow() error {
 	}
 
 	Main = &MainWindow{
-		fyneApp: app.New(),
+		fyneApp: app.NewWithID("org.saatool.app"),
 		window:  nil,
 		toolBar: container.NewGridWrap(fyne.NewSize(100, 50)),
 		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v", config.Version)),
@@ -81,7 +81,6 @@ func NewMainWindow() error {
 // ShowAndRun creates the main application window and starts the Fyne event loop.
 func (mw *MainWindow) ShowAndRun() {
 	defer log.Println("exiting application")
-	mw.fyneApp = app.New()
 
 	err := config.LoadOptions()
 	if err != nil {
