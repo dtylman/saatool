@@ -21,18 +21,22 @@ type ListItem struct {
 // NewListItem creates a new ListItem.
 func NewListItem(leading fyne.CanvasObject, title, subtitle string, trailing fyne.CanvasObject) *ListItem {
 	item := &ListItem{
-		Leading:  leading,
-		Trailing: trailing,
-		selected: false,
+		Leading:     leading,
+		txtTitle:    canvas.NewText(title, theme.Color(theme.ColorNameForeground)),
+		txtSubTitle: canvas.NewText(subtitle, theme.Color(theme.ColorNameForeground)),
+		Trailing:    trailing,
+		selected:    false,
 	}
-
-	item.txtTitle = canvas.NewText(title, theme.Color(theme.ColorNameForeground))
 	item.txtTitle.TextStyle = fyne.TextStyle{Bold: true}
-	item.txtTitle.TextSize = theme.Size(theme.SizeNameText) + 2
+	item.txtTitle.TextSize = theme.Size(theme.SizeNameText)
 
-	item.txtSubTitle = canvas.NewText(subtitle, theme.Color(theme.ColorNamePlaceHolder))
-	item.txtSubTitle.TextStyle = fyne.TextStyle{Italic: false}
-	item.txtSubTitle.TextSize = theme.Size(theme.SizeNameText) - 2
+	item.txtSubTitle = canvas.NewText(subtitle, theme.Color(theme.ColorNameForeground))
+	item.txtSubTitle.TextStyle = fyne.TextStyle{Italic: true}
+	subtitleSize := theme.Size(theme.SizeNameText) - 4
+	if subtitleSize < 0 {
+		subtitleSize = 1
+	}
+	item.txtSubTitle.TextSize = subtitleSize
 
 	item.ExtendBaseWidget(item)
 	return item
@@ -60,6 +64,7 @@ func (i *ListItem) SetSubtitle(subtitle string) {
 
 func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
 	texts := []fyne.CanvasObject{i.txtTitle, i.txtSubTitle}
+
 	textCol := container.NewVBox(texts...)
 
 	objects := []fyne.CanvasObject{}
@@ -73,7 +78,9 @@ func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
 
 	row := container.NewHBox(objects...)
 	bg := canvas.NewRectangle(theme.Color(theme.ColorNameBackground))
-
+	if i.selected {
+		bg.FillColor = theme.Color(theme.ColorNameSelection)
+	}
 	return &listItemRenderer{
 		item:    i,
 		bg:      bg,
@@ -81,6 +88,15 @@ func (i *ListItem) CreateRenderer() fyne.WidgetRenderer {
 		objects: []fyne.CanvasObject{bg, row},
 	}
 }
+
+// func (i *ListItem) Tapped(_ *fyne.PointEvent) {
+// 	log.Println("ListItem tapped")
+// 	if i.OnTapped != nil {
+// 		i.OnTapped()
+// 	}
+// }
+
+// func (i *ListItem) TappedSecondary(_ *fyne.PointEvent) {}
 
 type listItemRenderer struct {
 	item    *ListItem
@@ -91,19 +107,13 @@ type listItemRenderer struct {
 
 func (r *listItemRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
-	padding := theme.Padding() * 1.5
+	padding := theme.Padding()
 	r.row.Move(fyne.NewPos(padding, padding))
 	r.row.Resize(size.Subtract(fyne.NewSize(2*padding, 2*padding)))
 }
 
 func (r *listItemRenderer) MinSize() fyne.Size {
-	p := theme.Padding() * 1.5
-	base := r.row.MinSize().Add(fyne.NewSize(2*p, 2*p))
-	// enforce a comfortable minimum height
-	if base.Height < 56 {
-		base.Height = 56
-	}
-	return base
+	return r.row.MinSize().Add(fyne.NewSize(2*theme.Padding(), 2*theme.Padding()))
 }
 
 func (r *listItemRenderer) Refresh() {
@@ -112,9 +122,6 @@ func (r *listItemRenderer) Refresh() {
 	} else {
 		r.bg.FillColor = theme.Color(theme.ColorNameBackground)
 	}
-	// re-sync text colors in case theme changed
-	r.item.txtTitle.Color = theme.Color(theme.ColorNameForeground)
-	r.item.txtSubTitle.Color = theme.Color(theme.ColorNamePlaceHolder)
 	canvas.Refresh(r.bg)
 	r.row.Refresh()
 }

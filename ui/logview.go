@@ -26,6 +26,10 @@ func NewLogView() *LogView {
 
 	lv.view = lv.textGrid
 
+	Main.ClearActions()
+
+	Main.AddAction("Refresh", widgets.IconReload, lv.refreshTapped)
+
 	return lv
 }
 
@@ -33,12 +37,11 @@ func (lv *LogView) View() fyne.CanvasObject {
 	return lv.view
 }
 
-func (lv *LogView) Close() {}
+func (lv *LogView) Close() {
+	// nothing to do
+}
 
-// Load is called when the Log tab becomes active.
 func (lv *LogView) Load() {
-	Main.ClearActions()
-	Main.AddAction("Refresh", widgets.IconReload, lv.refreshTapped)
 	lv.loadMessages()
 	lv.textGrid.Refresh()
 }
