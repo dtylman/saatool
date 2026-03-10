@@ -64,9 +64,9 @@ func NewMainWindow() error {
 	}
 	Main = &MainWindow{
 		fyneApp: app.NewWithID("org.saatool.app"),
-    window:  nil,
-		toolBar: container.NewHBox(),			
-		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v", config.Version)),
+		window:  nil,
+		toolBar: container.NewHBox(),
+		//header:  widget.NewLabel(fmt.Sprintf("SaaTool %v", config.Version)),
 	}
 	return nil
 }
