@@ -39,3 +39,4 @@ cmd/saatooltool/projects/
 
 .vscode/launch.json
 build/*
+saatool
