@@ -25,17 +25,17 @@ import (
 
 // TranslationView represents the view for translating text in a project.
 type TranslationView struct {
-	view            fyne.CanvasObject
-	project         *translation.Project
-	translator      *ai.Translator
-	txt             *widgets.BidiText
-	panelMain       *fyne.Container
-	overlay         *fyne.Container
-	lblProgress     *widget.Label
-	btnLanguage     *widget.Button
-	projectSaver    *ProjectSaver
-	sourceView      bool // true for source language, false for target language
-	paragraphIndex  int  // current paragraph index
+	view           fyne.CanvasObject
+	project        *translation.Project
+	translator     *ai.Translator
+	txt            *widgets.BidiText
+	panelMain      *fyne.Container
+	overlay        *fyne.Container
+	lblProgress    *widget.Label
+	btnLanguage    *widget.Button
+	projectSaver   *ProjectSaver
+	sourceView     bool // true for source language, false for target language
+	paragraphIndex int  // current paragraph index
 }
 
 // NewTranslationView creates a new TranslationView for the given project.
