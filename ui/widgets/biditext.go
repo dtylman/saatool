@@ -53,7 +53,7 @@ func NewBidiText() *BidiText {
 		TextStyle: fyne.TextStyle{},
 		Padding:   theme.InnerPadding(),
 		Spacing:   theme.TextSize(),
-		Color:     theme.Color(theme.ColorNameForeground),
+		Color:     nil,
 		Offset:    0,
 		Length:    0,
 	}
@@ -165,9 +165,14 @@ func (b *BidiText) CreateRenderer() fyne.WidgetRenderer {
 		parent: b,
 	}
 
+	strokeColor := b.Color
+	if strokeColor == nil {
+		strokeColor = theme.Color(theme.ColorNameForeground)
+	}
+
 	r.rect = canvas.NewRectangle(color.Transparent)
 	r.rect.StrokeWidth = 1
-	r.rect.StrokeColor = b.Color
+	r.rect.StrokeColor = strokeColor
 	r.rect.FillColor = color.Transparent
 
 	r.texts = make([]*canvas.Text, 0)
@@ -187,6 +192,14 @@ type bidiTextRenderer struct {
 
 func (r *bidiTextRenderer) initializeObjects() {
 	r.texts = make([]*canvas.Text, 0)
+	textColor := r.parent.Color
+	if textColor == nil {
+		textColor = theme.Color(theme.ColorNameForeground)
+	}
+
+	if r.rect != nil {
+		r.rect.StrokeColor = textColor
+	}
 
 	if r.parent.Offset >= len(r.parent.Words) {
 		log.Printf("offset %d exceeds words length %d", r.parent.Offset, len(r.parent.Words))
@@ -195,7 +208,7 @@ func (r *bidiTextRenderer) initializeObjects() {
 
 	for i := r.parent.Offset; i < len(r.parent.Words); i++ {
 		word := r.parent.Words[i]
-		text := canvas.NewText(word, r.parent.Color)
+		text := canvas.NewText(word, textColor)
 		text.TextSize = r.parent.TextSize
 		text.Alignment = fyne.TextAlignCenter
 		r.texts = append(r.texts, text)
