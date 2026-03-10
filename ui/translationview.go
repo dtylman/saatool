@@ -132,16 +132,13 @@ func (tv *TranslationView) Load() {
 // onMainPanelTapped handles tap events on the main panel.
 // Left 30% → previous, Right 30% → next, Center 40% → toggle overlay.
 func (tv *TranslationView) onMainPanelTapped(pe *fyne.PointEvent) {
-	width := tv.view.Size().Width
-	x := pe.Position.X
+	leftSide := pe.Position.X < tv.txt.Size().Width/2
+	ltr := tv.txt.Direction == widgets.LeftToRight
 
-	switch {
-	case x < width*0.30:
+	if (leftSide && ltr) || (!leftSide && !ltr) {
 		tv.onPrevious()
-	case x > width*0.70:
+	} else {
 		tv.onNext()
-	default:
-		tv.toggleOverlay()
 	}
 }
 
