@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/dtylman/saatool/config"
@@ -36,6 +37,10 @@ type Paragraph struct {
 	ID string `json:"id"`
 	// Text is the content of the paragraph.
 	Text string `json:"text"`
+	// IsChapterStart marks the first paragraph of a new EPUB spine item
+	// (chapter, section, preface, etc.). Used by the reader to break pages
+	// at chapter boundaries rather than mid-chapter.
+	IsChapterStart bool `json:"chapter_start,omitempty"`
 }
 
 // CalcID calculates a unique ID for the paragraph based on its text.
@@ -66,6 +71,13 @@ type Project struct {
 	Genre string `json:"genre"`
 	// Characters is a list of characters involved in the text.
 	Characters []Character `json:"characters"`
+	// WritingStyle describes the author's narrative voice, tone, and pacing.
+	// E.g. "third-person omniscient, dark and introspective, fast-paced".
+	WritingStyle string `json:"writing_style,omitempty"`
+	// Glossary maps source-language terms to their preferred target-language
+	// translations. Used to keep made-up words, proper nouns, and specialised
+	// terms consistent across the whole book.
+	Glossary map[string]string `json:"glossary,omitempty"`
 	// Source is the source language unit containing paragraphs to be translated.
 	Source Unit `json:"source"`
 	// Target is the target language unit where the translated paragraphs will be stored.
@@ -293,6 +305,51 @@ func (p *Project) SetPosition(view bool, index int) {
 
 	p.LastSourceView = view
 	p.LastParagraphIndex = index
+}
+
+// ── Glossary ──────────────────────────────────────────────────────────────────
+
+// GetGlossary returns a shallow copy of the project's glossary (thread-safe).
+func (p *Project) GetGlossary() map[string]string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	result := make(map[string]string, len(p.Glossary))
+	for k, v := range p.Glossary {
+		result[k] = v
+	}
+	return result
+}
+
+// SetGlossaryEntry adds or updates a single glossary entry (thread-safe).
+func (p *Project) SetGlossaryEntry(term, translation string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.Glossary == nil {
+		p.Glossary = make(map[string]string)
+	}
+	p.Glossary[term] = translation
+}
+
+// DeleteGlossaryEntry removes a glossary entry (thread-safe).
+func (p *Project) DeleteGlossaryEntry(term string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	delete(p.Glossary, term)
+}
+
+// GetGlossaryFormatted returns the glossary as a ready-to-embed prompt string,
+// e.g. '  "butter-beer" → "בירת חמאה"\n'.  Returns "" when the glossary is empty.
+func (p *Project) GetGlossaryFormatted() string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if len(p.Glossary) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for term, trans := range p.Glossary {
+		fmt.Fprintf(&sb, "  \"%s\" → \"%s\"\n", term, trans)
+	}
+	return sb.String()
 }
 
 // DeleteProject deletes the project file from disk.

@@ -7,6 +7,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -23,17 +24,17 @@ import (
 
 // TranslationView represents the view for translating text in a project.
 type TranslationView struct {
-	view           fyne.CanvasObject
-	project        *translation.Project
-	translator     *ai.Translator
-	txt            *widgets.BidiText
-	panelMain      *fyne.Container
-	btnProgress    *widget.Button
-	btnLanguage    *widget.Button
-	projectSaver   *ProjectSaver
-	sourceView     bool // true for source language, false for target language
-	paragraphIndex int  // current paragraph index
-
+	view            fyne.CanvasObject
+	project         *translation.Project
+	translator      *ai.Translator
+	txt             *widgets.BidiText
+	panelMain       *fyne.Container
+	overlay         *fyne.Container
+	lblProgress     *widget.Label
+	btnLanguage     *widget.Button
+	projectSaver    *ProjectSaver
+	sourceView      bool // true for source language, false for target language
+	paragraphIndex  int  // current paragraph index
 }
 
 // NewTranslationView creates a new TranslationView for the given project.
@@ -46,7 +47,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	tv := &TranslationView{
 		project:        project,
 		txt:            widgets.NewBidiText(),
-		btnProgress:    widget.NewButton("", nil),
+		lblProgress:    widget.NewLabel(""),
 		sourceView:     project.LastSourceView,
 		paragraphIndex: 0,
 		translator:     translator,
@@ -54,29 +55,31 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	}
 
 	tv.translator.OnTranslationComplete = tv.onTranslationCompleted
+
+	// language toggle button (lives in overlay)
 	lang := cases.Title(language.English).String(project.Source.Language)
 	tv.btnLanguage = widget.NewButton(lang, tv.onLangChanged)
 
+	// reading view: no always-visible toolbar buttons
 	Main.ClearActions()
-	Main.AddActionWidget(tv.btnLanguage)
-	Main.AddAction("Next", widgets.IconNext, tv.onNext)
-	Main.AddAction("Previous", widgets.IconPrev, tv.onPrevious)
-	Main.AddAction("Fix", widgets.IconFix, tv.onFixParagraph)
 
-	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
-	Main.AddActionWidget(tv.btnProgress)
-	Main.AddActionWidget(tv.projectSaver.View)
-
-	//tv.txt.Direction = widgets.RightToLeft
+	// build the text size
 	appSize := config.Options.AppSize
 	tv.txt.TextSize = float32(appSize) * 2
 	tv.txt.Padding = float32(appSize) / 2
 	tv.txt.Spacing = float32(appSize) / 2
 
 	tv.panelMain = container.NewStack(tv.txt)
-	view := widgets.NewPanel(tv.panelMain, fyne.NewSize(0, 0))
-	view.OnTapped = tv.onMainPanelTapped
-	tv.view = view
+
+	// build overlay (hidden by default)
+	tv.overlay = tv.buildOverlay()
+	tv.overlay.Hide()
+
+	// outer layout: text fills top, overlay sits at the bottom
+	outerLayout := container.NewBorder(nil, tv.overlay, nil, nil, tv.panelMain)
+	panel := widgets.NewPanel(outerLayout, fyne.NewSize(0, 0))
+	panel.OnTapped = tv.onMainPanelTapped
+	tv.view = panel
 
 	// Set the initial paragraph
 	tv.SetParagraph(project.LastParagraphIndex)
@@ -85,6 +88,28 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	tv.updateText()
 
 	return tv, nil
+}
+
+// buildOverlay creates the slim control bar that slides in on center tap.
+func (tv *TranslationView) buildOverlay() *fyne.Container {
+	btnFontDown := widget.NewButton("A−", func() { tv.adjustFontSize(-2) })
+	btnFontUp := widget.NewButton("A+", func() { tv.adjustFontSize(+2) })
+	btnFix := widget.NewButton("Fix", tv.onFixParagraph)
+
+	tv.lblProgress.Alignment = fyne.TextAlignCenter
+
+	row := container.NewHBox(
+		btnFontDown,
+		btnFontUp,
+		widget.NewSeparator(),
+		tv.btnLanguage,
+		widget.NewSeparator(),
+		btnFix,
+		widget.NewSeparator(),
+		tv.lblProgress,
+	)
+
+	return container.NewPadded(row)
 }
 
 // WindowContent implementation:
@@ -98,28 +123,57 @@ func (tv *TranslationView) Close() {
 
 func (tv *TranslationView) Load() {
 	tv.projectSaver.Start()
+	tv.invokeTranslation()
 }
 
-// onMainPanelTapped handles tap events on the main panel of the translation view.
+// onMainPanelTapped handles tap events on the main panel.
+// Left 30% → previous, Right 30% → next, Center 40% → toggle overlay.
 func (tv *TranslationView) onMainPanelTapped(pe *fyne.PointEvent) {
-	leftSide := pe.Position.X < tv.txt.Size().Width/2
-	ltr := tv.txt.Direction == widgets.LeftToRight
+	width := tv.txt.Size().Width
+	x := pe.Position.X
 
-	if (leftSide && ltr) || (!leftSide && !ltr) {
+	switch {
+	case x < width*0.30:
 		tv.onPrevious()
-	} else {
+	case x > width*0.70:
 		tv.onNext()
+	default:
+		tv.toggleOverlay()
 	}
+}
+
+// toggleOverlay shows the overlay if hidden, hides it if visible.
+// When shown, it auto-hides after 4 seconds.
+func (tv *TranslationView) toggleOverlay() {
+	if tv.overlay.Visible() {
+		tv.overlay.Hide()
+	} else {
+		tv.overlay.Show()
+		time.AfterFunc(4*time.Second, func() {
+			fyne.Do(tv.overlay.Hide)
+		})
+	}
+}
+
+// adjustFontSize changes the reading font size by delta points and refreshes the text layout.
+func (tv *TranslationView) adjustFontSize(delta int) {
+	newSize := config.Options.AppSize + delta
+	if newSize < 8 {
+		newSize = 8
+	}
+	config.Options.AppSize = newSize
+	tv.txt.TextSize = float32(newSize) * 2
+	tv.txt.Padding = float32(newSize) / 2
+	tv.txt.Spacing = float32(newSize) / 2
+	tv.txt.Refresh()
 }
 
 // onNext handles the action of moving to the next word or paragraph.
 func (tv *TranslationView) onNext() {
-	// Move to the next word
 	if tv.txt.Next() {
 		tv.updateProgress()
 		return
 	}
-	// Load the next paragraph
 	tv.SetParagraph(tv.paragraphIndex + 1)
 }
 
@@ -228,7 +282,6 @@ func (tv *TranslationView) onProgressTapped() {
 					dialog.ShowError(fmt.Errorf("invalid paragraph number: %v", err), Main.window)
 					return
 				}
-				// Validate the paragraph number
 				if selectedParagraph < 0 || selectedParagraph >= len(tv.project.Target.Paragraphs) {
 					dialog.ShowError(fmt.Errorf("paragraph number out of range"), Main.window)
 					return
@@ -242,19 +295,17 @@ func (tv *TranslationView) onProgressTapped() {
 
 // onPrevious handles the action of moving to the previous word or paragraph.
 func (tv *TranslationView) onPrevious() {
-	// Move to the previous word
 	if tv.txt.Previous() {
 		tv.updateProgress()
 		return
 	}
-
-	// Load the previous paragraph
 	tv.SetParagraph(tv.paragraphIndex - 1)
 }
 
 // updateProgress updates the progress label with the current paragraph and word offset.
 func (tv *TranslationView) updateProgress() {
-	tv.btnProgress.SetText(fmt.Sprintf("%v.%v/%v", tv.paragraphIndex, tv.txt.Offset, len(tv.project.Target.Paragraphs)))
+	progressText := fmt.Sprintf("%v / %v", tv.paragraphIndex+1, len(tv.project.Target.Paragraphs))
+	tv.lblProgress.SetText(progressText)
 	tv.project.LastSourceView = tv.sourceView
 	tv.project.LastParagraphIndex = tv.paragraphIndex
 }
@@ -295,16 +346,14 @@ func (tv *TranslationView) updateText() {
 	}
 
 	tv.updateProgress()
-
 }
 
-// onSourceChange handles the change of the source language toggle.
+// onLangChanged handles the change of the source/target language toggle.
 func (tv *TranslationView) onLangChanged() {
 	tv.sourceView = !tv.sourceView
 	if tv.sourceView {
 		lang := cases.Title(language.English).String(tv.project.Source.Language)
 		tv.btnLanguage.SetText(lang)
-
 	} else {
 		lang := cases.Title(language.English).String(tv.project.Target.Language)
 		tv.btnLanguage.SetText(lang)
