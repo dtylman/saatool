@@ -60,7 +60,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	Main.ClearActions()
 	Main.AddActionWidget(tv.btnLanguage)
 	Main.AddAction("Fix", widgets.IconFix, tv.onFixParagraph)
-	Main.AddAction("Retranslate", widgets.IconReload, tv.onRetranslateParagraph)
+	Main.AddAction("Re-Trans", widgets.IconReload, tv.onRetranslateParagraph)
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
