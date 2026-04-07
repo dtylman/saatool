@@ -66,7 +66,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
 	Main.AddActionWidget(widgets.NewStyleSelector(ai.PromptStyle(project.Style), func(style ai.PromptStyle) {
-		tv.translator.SetStyle(style)
+		tv.onStyleChanged(style)
 	}))
 	Main.AddActionWidget(tv.projectSaver.View)
 
@@ -318,4 +318,41 @@ func (tv *TranslationView) onLangChanged() {
 // onFixParagraph handles the action of fixing the current paragraph by re-translating it.
 func (tv *TranslationView) onFixParagraph() {
 	go tv.translator.FixTranslation(context.Background(), tv.paragraphIndex)
+}
+
+// onStyleChanged handles the style selector change. It asks the user for confirmation
+// before clearing translations from the current paragraph forward.
+func (tv *TranslationView) onStyleChanged(style ai.PromptStyle) {
+	// Find the range of paragraphs that have translations from current forward
+	total := len(tv.project.Target.Paragraphs)
+	lastTranslated := -1
+	for i := tv.paragraphIndex; i < total; i++ {
+		if tv.project.Target.Paragraphs[i].Text != "" {
+			lastTranslated = i
+		}
+	}
+
+	if lastTranslated < 0 {
+		// No translated paragraphs to clear, just switch style
+		tv.translator.SetStyle(style)
+		return
+	}
+
+	msg := fmt.Sprintf("Changing style will clear translations for paragraphs %d to %d. Continue?",
+		tv.paragraphIndex, lastTranslated)
+
+	dialog.ShowConfirm("Change Translation Style", msg, func(ok bool) {
+		if !ok {
+			return
+		}
+		tv.translator.SetStyle(style)
+		for i := tv.paragraphIndex; i < total; i++ {
+			if tv.project.Target.Paragraphs[i].Text != "" {
+				_ = tv.project.SetTranslation(i, "")
+			}
+		}
+		tv.projectSaver.SetDirty(true)
+		tv.updateText()
+		tv.invokeTranslation()
+	}, Main.window)
 }
