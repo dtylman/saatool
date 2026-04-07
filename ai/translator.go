@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -29,6 +28,7 @@ type Translator struct {
 	inTranslation map[string]time.Time
 	mutex         sync.Mutex
 	stats         *TranslationStatistics
+	style         PromptStyle
 	//OnTranslationComplete happens after a paragraph is translated and saved to the project
 	OnTranslationComplete func(paragraphIndex int, translation string)
 }
@@ -46,7 +46,13 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
 		stats:         NewTranslationStatistics(),
+		style:         StyleStrict,
 	}, nil
+}
+
+// SetStyle sets the translation prompt style.
+func (t *Translator) SetStyle(style PromptStyle) {
+	t.style = style
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
@@ -55,11 +61,11 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 
 	log.Printf("requesting book details for: %s", book.Title)
 
-	systemPrompt, err := GetBookDetailsPrompt(StyleStrict, RoleSystem, book)
+	systemPrompt, err := GetBookDetailsPrompt(t.style, RoleSystem, book)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create system prompt: %v", err)
 	}
-	userPrompt, err := GetBookDetailsPrompt(StyleStrict, RoleUser, book)
+	userPrompt, err := GetBookDetailsPrompt(t.style, RoleUser, book)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user prompt: %v", err)
 	}
@@ -211,12 +217,12 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 
 	doc := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
 
-	systemPrompt, err := GetStyledPrompt(StyleStrict, RoleSystem, MethodProofread, doc)
+	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodProofread, doc)
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	userPrompt, err := GetStyledPrompt(StyleStrict, RoleUser, MethodProofread, doc)
+	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodProofread, doc)
 	if err != nil {
 		return fmt.Errorf("failed to create user prompt: %v", err)
 	}
@@ -278,33 +284,14 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	bookDetails, err := json.Marshal(NewBookDetails(t.project))
-	if err != nil {
-		return fmt.Errorf("failed to marshal book details: %v", err)
-	}
+	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
 
-	systemPrompt, err := GetPrompt(`You are a translation proofreader. The translation '{{.source_lang}}' to '{{.target_lang}}' was reported bad from the readers. Since you are also a native speaker of both '{{.source_lang}}' and '{{.target_lang}}', your task is to re-translate the text in the provided json. Fix any issues with translation, make an extra care to make sure all words and terms in the target language makes sense and are grammatically correct. Also make sure the target text avoids using terms from other languages. Here is some background information about the book being translated: {{.book_details}}`,
-		map[string]string{
-			"source_lang":  rc.sourceLang,
-			"target_lang":  rc.targetLang,
-			"book_details": string(bookDetails),
-		})
-
+	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodFix, translationDocument)
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
-	jsonData, err := json.Marshal(translationDocument)
-	if err != nil {
-		return fmt.Errorf("failed to marshal translation document: %v", err)
-	}
-	userPrompt, err := GetPrompt(`The provided JSON object contains a bad 'target' translation. Please re-translate to from 'source' paragraph to '{{.target_lang}}' it and provide the corrected translation in the same JSON format. Here is the JSON object: {{.data}}`,
-		map[string]string{
-			"target_lang": rc.targetLang,
-			"data":        string(jsonData),
-		})
-
+	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodFix, translationDocument)
 	if err != nil {
 		return fmt.Errorf("failed to create user prompt: %v", err)
 	}
@@ -391,30 +378,15 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 
 	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
 
-	data, err := json.Marshal(translationDocument)
-	if err != nil {
-		return fmt.Errorf("failed to marshal translation document: %v", err)
-	}
-
-	bookDetails, err := json.Marshal(NewBookDetails(t.project))
-	if err != nil {
-		return fmt.Errorf("failed to marshal book details: %v", err)
-	}
-
-	systemPrompt, err := GetPrompt(`You are a professional translator from '{{.source_lang}}' to '{{.target_lang}}' and a native speaker of both '{{.source_lang}}' and '{{.target_lang}}'. Your task is to translate '{{.book_title}}', which is a {{.book_type}}. The translation is done paragraph by paragraph. Make sure to translate the text accurately and preserve its meaning and the writer style. The translation should be: accurate; preserve the meaning and style of the original text; be free of grammatical errors; use natural and fluent {{.target_lang}} language; be culturally precise for contemporary {{.target_lang}} readers. Here are some details about the book: {{.book_details}}`,
-		map[string]string{
-			"source_lang":  rc.sourceLang,
-			"target_lang":  rc.targetLang,
-			"book_title":   t.project.GetTitle(),
-			"book_type":    t.project.GetType(),
-			"book_details": string(bookDetails),
-		})
-
+	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodTranslate, translationDocument)
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	userPrompt := `I need to provide a JSON object with translated text. The 'source' field contains a list of paragraphs in the source language, and the 'target' field should contain the translated text in the target language. Some of them are already translated, make sure the translation is accurate, if so, keep the same ideas in the new paragraph. Keep translated names and terms consistent. provide the translation in a JSON object. Here is the JSON object: ` + string(data)
+	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodTranslate, translationDocument)
+	if err != nil {
+		return fmt.Errorf("failed to create user prompt: %v", err)
+	}
 
 	request := deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
