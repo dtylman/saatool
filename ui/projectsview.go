@@ -27,6 +27,7 @@ func NewProjectsView() *ProjectsView {
 
 	Main.ClearActions()
 	Main.AddAction("Translate", widgets.IconTranslate, pv.onTranslateTapped)
+	Main.AddAction("Edit", widgets.IconSettings, pv.onEditTapped)
 	Main.AddAction("Import", widgets.IconOpen, pv.onImportTapped)
 	Main.AddAction("Export", widgets.IconSave, pv.onExportTapped)
 	Main.AddAction("Delete", widgets.IconDelete, pv.onDeleteTapped)
@@ -185,6 +186,14 @@ func (ed *ProjectsView) onTranslateTapped() {
 		return
 	}
 	Main.SetContent(tv)
+}
+
+func (ed *ProjectsView) onEditTapped() {
+	if ed.selectedProject == nil {
+		Main.ShowError("No project selected to edit.")
+		return
+	}
+	Main.SetContent(NewProjectEditView(ed.selectedProject))
 }
 
 func (ed *ProjectsView) onDeleteTapped() {

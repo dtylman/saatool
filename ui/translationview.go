@@ -60,6 +60,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	Main.ClearActions()
 	Main.AddActionWidget(tv.btnLanguage)
 	Main.AddAction("Fix", widgets.IconFix, tv.onFixParagraph)
+	Main.AddAction("Retranslate", widgets.IconReload, tv.onRetranslateParagraph)
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
@@ -319,6 +320,18 @@ func (tv *TranslationView) onLangChanged() {
 // onFixParagraph handles the action of fixing the current paragraph by re-translating it.
 func (tv *TranslationView) onFixParagraph() {
 	go tv.translator.FixTranslation(context.Background(), tv.paragraphIndex)
+}
+
+// onRetranslateParagraph clears the current paragraph's translation and retranslates it.
+func (tv *TranslationView) onRetranslateParagraph() {
+	_ = tv.project.SetTranslation(tv.paragraphIndex, "")
+	tv.updateText()
+	go func() {
+		err := tv.translator.Translate(context.Background(), tv.paragraphIndex)
+		if err != nil {
+			log.Printf("retranslation error (paragraph %v): %v", tv.paragraphIndex, err)
+		}
+	}()
 }
 
 // onStyleChanged handles the style selector change. It asks the user for confirmation
