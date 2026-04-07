@@ -15,6 +15,8 @@ const (
 	StyleStrict   PromptStyle = "strict"
 	StyleAcademic PromptStyle = "academic"
 	StyleLiterary PromptStyle = "literary"
+	StyleArchaic  PromptStyle = "archaic"
+	StyleRap      PromptStyle = "rap"
 )
 
 // PromptRole represents the message role in a chat completion.
