@@ -41,18 +41,23 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	if client == nil {
 		return nil, fmt.Errorf("failed to create DeepSeek client")
 	}
+	style := PromptStyle(project.Style)
+	if style == "" {
+		style = StyleStrict
+	}
 	return &Translator{client: client,
 		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
 		stats:         NewTranslationStatistics(),
-		style:         StyleStrict,
+		style:         style,
 	}, nil
 }
 
-// SetStyle sets the translation prompt style.
+// SetStyle sets the translation prompt style and updates the project.
 func (t *Translator) SetStyle(style PromptStyle) {
 	t.style = style
+	t.project.Style = string(style)
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.

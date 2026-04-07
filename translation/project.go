@@ -72,6 +72,8 @@ type Project struct {
 	Target Unit `json:"target"`
 	// Prompt is the translation prompt or instructions for the translator.
 	Prompt string `json:"prompt"`
+	// Style is the translation prompt style (e.g. "strict", "academic", "literary").
+	Style string `json:"style,omitempty"`
 	// LastSourceView indicates whether the last view was source or target.
 	LastSourceView bool `json:"last_source_view"`
 	// LastParagraphIndex is the index of the last viewed paragraph.
@@ -125,6 +127,7 @@ func NewProject(name string) *Project {
 		Source:             Unit{Paragraphs: make([]Paragraph, 0)},
 		Target:             Unit{Paragraphs: make([]Paragraph, 0)},
 		Characters:         make([]Character, 0),
+		Style:              "strict",
 		LastSourceView:     true,
 		LastParagraphIndex: 0,
 	}
@@ -154,6 +157,9 @@ func LoadProject(path string) (*Project, error) {
 	err = json.Unmarshal(data, &proj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal project file: %v", err)
+	}
+	if proj.Style == "" {
+		proj.Style = "strict"
 	}
 	return &proj, nil
 }

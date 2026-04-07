@@ -105,6 +105,11 @@ func (a *PDFImportAction) Flags() []cli.Flag {
 			Usage:   "Get book details from DeepSeek",
 			Value:   true,
 		},
+		&cli.StringFlag{
+			Name:  "style",
+			Usage: "Translation prompt style (strict, academic, literary, archaic, rap)",
+			Value: "strict",
+		},
 		&cli.IntFlag{
 			Name:    "skip-pages",
 			Aliases: []string{"p"},
@@ -268,6 +273,7 @@ func (a *PDFImportAction) createProject(ctx context.Context, cmd *cli.Command) e
 
 	a.project.Source.Language = from
 	a.project.Target.Language = to
+	a.project.Style = cmd.String("style")
 
 	if !cmd.Bool("details") {
 		return nil

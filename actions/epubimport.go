@@ -77,6 +77,11 @@ func (ec *EPubImportAction) Flags() []cli.Flag {
 			Usage:   "Use AI to get detailed information about the book",
 			Value:   true,
 		},
+		&cli.StringFlag{
+			Name:  "style",
+			Usage: "Translation prompt style (strict, academic, literary, archaic, rap)",
+			Value: "strict",
+		},
 	}
 }
 
@@ -159,6 +164,7 @@ func (ec *EPubImportAction) import1(cmd *cli.Command) error {
 	ec.project.Source.Paragraphs = make([]translation.Paragraph, 0)
 	ec.project.Target.Language = to
 	ec.project.Target.Paragraphs = make([]translation.Paragraph, 0)
+	ec.project.Style = cmd.String("style")
 
 	maxWords := cmd.Int("max-words")
 	maxWordsTolerance := cmd.Int("max-words-tolerance")
