@@ -31,6 +31,7 @@ type TranslationView struct {
 	btnProgress    *widget.Button
 	btnLanguage    *widget.Button
 	projectSaver   *ProjectSaver
+	progressBar    *widget.ProgressBar
 	sourceView     bool // true for source language, false for target language
 	paragraphIndex int  // current paragraph index
 
@@ -60,14 +61,13 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	Main.ClearActions()
 	Main.AddActionWidget(tv.btnLanguage)
 	Main.AddAction("Fix", widgets.IconFix, tv.onFixParagraph)
-	Main.AddAction("Re-Trans", widgets.IconReload, tv.onRetranslateParagraph)
+	Main.AddAction("Again!", widgets.IconReload, tv.onRetranslateParagraph)
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
 	Main.AddActionWidget(widgets.NewStyleSelector(ai.PromptStyle(project.Style), func(style ai.PromptStyle) {
 		tv.onStyleChanged(style)
 	}))
-	Main.AddActionWidget(tv.projectSaver.View)
 
 	//tv.txt.Direction = widgets.RightToLeft
 	appSize := config.Options.AppSize
@@ -75,7 +75,13 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	tv.txt.Padding = float32(appSize) / 2
 	tv.txt.Spacing = float32(appSize) / 2
 
-	tv.panelMain = container.NewStack(tv.txt)
+	tv.progressBar = widget.NewProgressBar()
+	tv.progressBar.Min = 0
+	tv.progressBar.Max = 1
+	tv.progressBar.Value = 0
+	tv.projectSaver.SetProgressBar(tv.progressBar)
+
+	tv.panelMain = container.NewStack(tv.progressBar, tv.txt)
 	view := widgets.NewPanel(tv.panelMain, fyne.NewSize(0, 0))
 	view.OnTapped = tv.onMainPanelTapped
 	tv.view = view

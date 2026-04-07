@@ -30,12 +30,13 @@ type WindowContent interface {
 
 // MainWindow represents the main application window.
 type MainWindow struct {
-	fyneApp    fyne.App
-	window     fyne.Window
-	content    WindowContent
-	toolBar    *fyne.Container
-	header     *widget.Label
-	translator *ai.Translator
+	fyneApp     fyne.App
+	window      fyne.Window
+	content     WindowContent
+	toolBar     *fyne.Container
+	header      *widget.Label
+	statusLabel *widget.Label
+	translator  *ai.Translator
 }
 
 func (mw *MainWindow) OpenProjectSaveDialog(callback func(fyne.URIWriteCloser, error), project *translation.Project) {
@@ -69,10 +70,11 @@ func NewMainWindow() error {
 	}
 
 	Main = &MainWindow{
-		fyneApp: app.NewWithID("org.saatool.app"),
-		window:  nil,
-		toolBar: container.NewGridWrap(fyne.NewSize(100, 50)),
-		header:  widget.NewLabel(fmt.Sprintf("SaaTool %v", config.Version)),
+		fyneApp:     app.NewWithID("org.saatool.app"),
+		window:      nil,
+		toolBar:     container.NewGridWrap(fyne.NewSize(100, 50)),
+		header:      widget.NewLabel(fmt.Sprintf("SaaTool %v", config.Version)),
+		statusLabel: widget.NewLabel(""),
 	}
 
 	return nil
@@ -116,6 +118,7 @@ func (mw *MainWindow) Refresh() {
 		panelTop := container.NewHBox(
 			widget.NewIcon(widgets.IconLogo),
 			mw.header,
+			mw.statusLabel,
 		)
 
 		mainToolBar := container.NewGridWrap(fyne.NewSize(100, 50))
@@ -176,4 +179,11 @@ func (mw *MainWindow) ShowMessage(message string) {
 
 func (mw *MainWindow) ShowError(message string) {
 	fyne.Do(dialog.NewError(errors.New(message), mw.window).Show)
+}
+
+// SetStatus updates the status text shown in the header area.
+func (mw *MainWindow) SetStatus(text string) {
+	fyne.Do(func() {
+		mw.statusLabel.SetText(text)
+	})
 }

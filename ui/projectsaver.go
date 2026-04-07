@@ -6,21 +6,18 @@ import (
 	"log"
 	"time"
 
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
-	"github.com/dtylman/saatool/ui/widgets"
 )
 
 // ProjectSaver saves the project periodically
 type ProjectSaver struct {
-	translator *ai.Translator
-	project    *translation.Project
-	dirty      bool
-	label      *widget.Label
-	View       fyne.CanvasObject
-	cancel     context.CancelFunc
+	translator  *ai.Translator
+	project     *translation.Project
+	dirty       bool
+	cancel      context.CancelFunc
+	progressBar *widget.ProgressBar
 }
 
 // NewProjectSaver creates a new ProjectSaver for the given project.
@@ -29,12 +26,7 @@ func NewProjectSaver(translator *ai.Translator, project *translation.Project) *P
 		translator: translator,
 		project:    project,
 		dirty:      false,
-		label:      widget.NewLabel("ETA"),
 	}
-	panel := widgets.NewPanel(ps.label, fyne.NewSize(150, 20))
-	panel.Border = 3
-	ps.View = panel
-
 	return ps
 }
 
@@ -81,17 +73,36 @@ func (ps *ProjectSaver) onSaveInterval() {
 	}
 }
 
-// onStatInterval updates the statistics label
+// SetProgressBar sets the progress bar to update with ETA.
+func (ps *ProjectSaver) SetProgressBar(bar *widget.ProgressBar) {
+	ps.progressBar = bar
+}
+
+// onStatInterval updates the status in the header
 func (ps *ProjectSaver) onStatInterval() {
 	eta, total := ps.translator.Stats()
-	text := fmt.Sprintf("%d (%s)", total, eta.Round(time.Second).String())
-	fyne.Do(func() {
-		ps.label.SetText(text)
-	})
+	if total == 0 {
+		Main.SetStatus("")
+		if ps.progressBar != nil {
+			ps.progressBar.SetValue(0)
+		}
+	} else {
+		text := fmt.Sprintf("%d translating (%s)", total, eta.Round(time.Second).String())
+		Main.SetStatus(text)
+		if ps.progressBar != nil {
+			const maxETA = 45.0
+			secs := eta.Seconds()
+			if secs > maxETA {
+				secs = maxETA
+			}
+			ps.progressBar.SetValue(secs / maxETA)
+		}
+	}
 }
 
 func (ps *ProjectSaver) Stop() {
 	log.Println("Stopping project saver")
 	ps.cancel()
 	ps.onSaveInterval()
+	Main.SetStatus("")
 }
