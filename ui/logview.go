@@ -32,6 +32,8 @@ func NewLogView() *LogView {
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			label := obj.(*widget.Label)
 			label.SetText(lv.messages[id])
+			height := label.MinSize().Height
+			lv.list.SetItemHeight(id, height)
 		},
 	)
 
