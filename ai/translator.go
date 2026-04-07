@@ -53,27 +53,27 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 	book := NewBookDetails(t.project)
 
-	bookRequest, err := json.Marshal(book)
+	log.Printf("requesting book details for: %s", book.Title)
+
+	systemPrompt, err := GetBookDetailsPrompt(StyleStrict, RoleSystem, book)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal book to JSON: %v", err)
+		return nil, fmt.Errorf("failed to create system prompt: %v", err)
+	}
+	userPrompt, err := GetBookDetailsPrompt(StyleStrict, RoleUser, book)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user prompt: %v", err)
 	}
 
-	log.Printf("requesting book details for: %s", book.Title)
 	resp, err := t.client.CreateChatCompletion(ctx, &deepseek.ChatCompletionRequest{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.ChatCompletionMessage{
 			{
 				Role:    deepseek.ChatMessageRoleSystem,
-				Content: "You are a librarian.",
+				Content: systemPrompt,
 			},
 			{
-				Role: deepseek.ChatMessageRoleUser,
-				Content: "Provide required in formation about the book. I need to fill in the provided JSON template. " +
-					"Use the title and author fields to search for the book. Correct the existing fields and fill in missing fields. " +
-					"Provide details about the main characters, genre, synopsis, and any other relevant information. " +
-					"Make an effort to fill in all fields. I am most interested in the gender of the main characters, " +
-					"as they are important for the translation effort." +
-					"Return the information in the following JSON format: " + string(bookRequest),
+				Role:    deepseek.ChatMessageRoleUser,
+				Content: userPrompt,
 			},
 		},
 		JSONMode: true,
@@ -209,26 +209,14 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	systemPrompt, err := GetPrompt(`You are a professional proofreader and a native speaker of '{{.target_lang}}'. Your task is to proofread the provided text for grammar, spelling, punctuation, and overall readability. Ensure that the text flows well and is easy to understand.`,
-		map[string]string{
-			"target_lang": rc.targetLang,
-		})
+	doc := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
+
+	systemPrompt, err := GetStyledPrompt(StyleStrict, RoleSystem, MethodProofread, doc)
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	doc := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
-	jsonData, err := json.Marshal(doc)
-	if err != nil {
-		return fmt.Errorf("failed to marshal translation document: %v", err)
-	}
-
-	userPrompt, err := GetPrompt(`The provided JSON object contains a 'target' paragraph that needs proofreading. It is a text that had been translated from {{.source_lang}} to '{{.target_lang}}'. The {{.source_lang}} is provided for reference. Please proofread the text in the 'target' paragraph and provide the corrected text in the same JSON format. Here is the JSON object: {{.data}}`,
-		map[string]string{
-			"source_lang": rc.sourceLang,
-			"target_lang": rc.targetLang,
-			"data":        string(jsonData),
-		})
+	userPrompt, err := GetStyledPrompt(StyleStrict, RoleUser, MethodProofread, doc)
 	if err != nil {
 		return fmt.Errorf("failed to create user prompt: %v", err)
 	}
