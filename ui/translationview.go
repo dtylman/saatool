@@ -65,7 +65,9 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
-	Main.AddActionWidget(widgets.NewStyleSelector(ai.StyleStrict, nil))
+	Main.AddActionWidget(widgets.NewStyleSelector(ai.StyleStrict, func(style ai.PromptStyle) {
+		tv.translator.SetStyle(style)
+	}))
 	Main.AddActionWidget(tv.projectSaver.View)
 
 	//tv.txt.Direction = widgets.RightToLeft
