@@ -35,6 +35,7 @@ func (ml *memoryLogBuffer) Write(p []byte) (n int, err error) {
 }
 
 func (ml *memoryLogBuffer) Init() {
+	log.SetFlags(log.Ltime)
 	log.Printf("initializing memory log buffer with max size %d", ml.maxSize)
 	teeWriter := io.MultiWriter(ml, log.Writer())
 	log.SetOutput(teeWriter)
