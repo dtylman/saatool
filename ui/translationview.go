@@ -82,7 +82,10 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	tv.view = view
 
 	// Set the initial paragraph
-	tv.SetParagraph(project.LastParagraphIndex)
+	tv.paragraphIndex = project.LastParagraphIndex
+	if !tv.sourceView {
+		tv.invokeTranslation()
+	}
 
 	tv.updateProgress()
 	tv.updateText()
@@ -307,10 +310,10 @@ func (tv *TranslationView) onLangChanged() {
 	if tv.sourceView {
 		lang := cases.Title(language.English).String(tv.project.Source.Language)
 		tv.btnLanguage.SetText(lang)
-
 	} else {
 		lang := cases.Title(language.English).String(tv.project.Target.Language)
 		tv.btnLanguage.SetText(lang)
+		tv.invokeTranslation()
 	}
 	tv.updateText()
 }
