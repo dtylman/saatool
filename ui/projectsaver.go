@@ -6,10 +6,13 @@ import (
 	"log"
 	"time"
 
-	"fyne.io/fyne/v2/widget"
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 )
+
+type progressUpdater interface {
+	SetValue(float64)
+}
 
 // ProjectSaver saves the project periodically
 type ProjectSaver struct {
@@ -17,7 +20,7 @@ type ProjectSaver struct {
 	project     *translation.Project
 	dirty       bool
 	cancel      context.CancelFunc
-	progressBar *widget.ProgressBar
+	progressBar progressUpdater
 }
 
 // NewProjectSaver creates a new ProjectSaver for the given project.
@@ -74,7 +77,7 @@ func (ps *ProjectSaver) onSaveInterval() {
 }
 
 // SetProgressBar sets the progress bar to update with ETA.
-func (ps *ProjectSaver) SetProgressBar(bar *widget.ProgressBar) {
+func (ps *ProjectSaver) SetProgressBar(bar progressUpdater) {
 	ps.progressBar = bar
 }
 

@@ -31,7 +31,7 @@ type TranslationView struct {
 	btnProgress    *widget.Button
 	btnLanguage    *widget.Button
 	projectSaver   *ProjectSaver
-	progressBar    *widget.ProgressBar
+	progressBar    *widgets.ETABar
 	sourceView     bool // true for source language, false for target language
 	paragraphIndex int  // current paragraph index
 
@@ -75,10 +75,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	tv.txt.Padding = float32(appSize) / 2
 	tv.txt.Spacing = float32(appSize) / 2
 
-	tv.progressBar = widget.NewProgressBar()
-	tv.progressBar.Min = 0
-	tv.progressBar.Max = 1
-	tv.progressBar.Value = 0
+	tv.progressBar = widgets.NewETABar()
 	tv.projectSaver.SetProgressBar(tv.progressBar)
 
 	tv.panelMain = container.NewStack(tv.progressBar, tv.txt)
