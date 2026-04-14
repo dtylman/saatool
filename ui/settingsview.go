@@ -13,6 +13,8 @@ import (
 
 type SettingsView struct {
 	entryDeepSeekAPIKey *widget.Entry
+	entryDeepSeekModel  *widget.Entry
+	entryFallbackModel  *widget.Entry
 	entryAppSize        *widget.Entry
 	entryTransDocSize   *widget.Entry
 	entryTranslateAhead *widget.Entry
@@ -24,6 +26,8 @@ type SettingsView struct {
 func NewSettingsView() *SettingsView {
 	sv := &SettingsView{
 		entryDeepSeekAPIKey: widget.NewEntry(),
+		entryDeepSeekModel:  widget.NewEntry(),
+		entryFallbackModel:  widget.NewEntry(),
 		entryAppSize:        widget.NewEntry(),
 		entryTranslateAhead: widget.NewEntry(),
 		entryTransDocSize:   widget.NewEntry(),
@@ -32,6 +36,8 @@ func NewSettingsView() *SettingsView {
 
 	sv.view = widget.NewForm(
 		widget.NewFormItem("DeepSeek API Key", sv.entryDeepSeekAPIKey),
+		widget.NewFormItem("DeepSeek Model", sv.entryDeepSeekModel),
+		widget.NewFormItem("Fallback Model", sv.entryFallbackModel),
 		widget.NewFormItem("App Sizes Factor", sv.entryAppSize),
 		widget.NewFormItem("Translate Ahead", sv.entryTranslateAhead),
 		widget.NewFormItem("Auto Proofread", sv.entryAutoProofread),
@@ -43,6 +49,8 @@ func NewSettingsView() *SettingsView {
 
 	sv.entryDeepSeekAPIKey.SetText(config.Options.DeepSeekAPIKey)
 	sv.entryDeepSeekAPIKey.Password = true
+	sv.entryDeepSeekModel.SetText(config.Options.DeepSeekModel)
+	sv.entryFallbackModel.SetText(config.Options.DeepSeekFallbackModel)
 	sv.entryTranslateAhead.SetText(fmt.Sprintf("%v", config.Options.TranslateAhead))
 	sv.entryAutoProofread.SetChecked(config.Options.AutoProofread)
 
@@ -67,6 +75,8 @@ func (sv *SettingsView) Load() {
 
 func (sv *SettingsView) onSaveTapped() {
 	config.Options.DeepSeekAPIKey = sv.entryDeepSeekAPIKey.Text
+	config.Options.DeepSeekModel = sv.entryDeepSeekModel.Text
+	config.Options.DeepSeekFallbackModel = sv.entryFallbackModel.Text
 	newSize, err := strconv.Atoi(sv.entryAppSize.Text)
 	if err != nil {
 		log.Printf("invalid app size: %v", err)

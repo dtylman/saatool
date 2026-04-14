@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	deepseek "github.com/cohesion-org/deepseek-go"
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
@@ -23,17 +24,18 @@ import (
 
 // TranslationView represents the view for translating text in a project.
 type TranslationView struct {
-	view           fyne.CanvasObject
-	project        *translation.Project
-	translator     *ai.Translator
-	txt            *widgets.BidiText
-	panelMain      *fyne.Container
-	btnProgress    *widget.Button
-	btnLanguage    *widget.Button
-	projectSaver   *ProjectSaver
-	progressBar    *widgets.ETABar
-	sourceView     bool // true for source language, false for target language
-	paragraphIndex int  // current paragraph index
+	view            fyne.CanvasObject
+	project         *translation.Project
+	translator      *ai.Translator
+	txt             *widgets.BidiText
+	panelMain       *fyne.Container
+	btnProgress     *widget.Button
+	btnLanguage     *widget.Button
+	chkReasonerOnce *widget.Check
+	projectSaver    *ProjectSaver
+	progressBar     *widgets.ETABar
+	sourceView      bool // true for source language, false for target language
+	paragraphIndex  int  // current paragraph index
 
 }
 
@@ -45,13 +47,14 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 	}
 
 	tv := &TranslationView{
-		project:        project,
-		txt:            widgets.NewBidiText(),
-		btnProgress:    widget.NewButton("", nil),
-		sourceView:     project.LastSourceView,
-		paragraphIndex: 0,
-		translator:     translator,
-		projectSaver:   NewProjectSaver(translator, project),
+		project:         project,
+		txt:             widgets.NewBidiText(),
+		btnProgress:     widget.NewButton("", nil),
+		chkReasonerOnce: widget.NewCheck("Reasoner once", nil),
+		sourceView:      project.LastSourceView,
+		paragraphIndex:  0,
+		translator:      translator,
+		projectSaver:    NewProjectSaver(translator, project),
 	}
 
 	tv.translator.OnTranslationComplete = tv.onTranslationCompleted
@@ -65,6 +68,13 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
+	tv.chkReasonerOnce.SetChecked(false)
+	tv.chkReasonerOnce.OnChanged = func(checked bool) {
+		if checked {
+			tv.translator.UseModelOnce(deepseek.DeepSeekReasoner)
+		}
+	}
+	Main.AddActionWidget(tv.chkReasonerOnce)
 	Main.AddActionWidget(widgets.NewStyleSelector(ai.PromptStyle(project.Style), func(style ai.PromptStyle) {
 		tv.onStyleChanged(style)
 	}))
@@ -199,6 +209,9 @@ func (tv *TranslationView) translateParagraph(paragraph int) error {
 		err := tv.translator.Translate(context.Background(), paragraph)
 		if err != nil {
 			log.Printf("translation error (paragraph %v): %v", paragraph, err)
+			fyne.Do(func() {
+				dialog.ShowError(fmt.Errorf("translation failed for paragraph %d: %v", paragraph, err), Main.window)
+			})
 		}
 	}()
 
@@ -210,10 +223,15 @@ func (tv *TranslationView) onTranslationCompleted(paragraphIndex int, translatio
 	tv.projectSaver.SetDirty(true)
 	if tv.paragraphIndex == paragraphIndex {
 		fyne.Do(func() {
+			tv.chkReasonerOnce.SetChecked(false)
 			tv.updateText()
 			tv.updateProgress()
 		})
+		return
 	}
+	fyne.Do(func() {
+		tv.chkReasonerOnce.SetChecked(false)
+	})
 }
 
 // onProgressTapped handles the action of navigating to a specific paragraph.
@@ -322,7 +340,15 @@ func (tv *TranslationView) onLangChanged() {
 
 // onFixParagraph handles the action of fixing the current paragraph by re-translating it.
 func (tv *TranslationView) onFixParagraph() {
-	go tv.translator.FixTranslation(context.Background(), tv.paragraphIndex)
+	go func() {
+		err := tv.translator.FixTranslation(context.Background(), tv.paragraphIndex)
+		if err != nil {
+			log.Printf("fix error (paragraph %v): %v", tv.paragraphIndex, err)
+			fyne.Do(func() {
+				dialog.ShowError(fmt.Errorf("fix failed for paragraph %d: %v", tv.paragraphIndex, err), Main.window)
+			})
+		}
+	}()
 }
 
 // onRetranslateParagraph clears the current paragraph's translation and retranslates it.
@@ -333,6 +359,9 @@ func (tv *TranslationView) onRetranslateParagraph() {
 		err := tv.translator.Translate(context.Background(), tv.paragraphIndex)
 		if err != nil {
 			log.Printf("retranslation error (paragraph %v): %v", tv.paragraphIndex, err)
+			fyne.Do(func() {
+				dialog.ShowError(fmt.Errorf("retranslation failed for paragraph %d: %v", tv.paragraphIndex, err), Main.window)
+			})
 		}
 	}()
 }

@@ -12,6 +12,10 @@ import (
 var Options struct {
 	//DeepSeekAPIKey is the API key for DeepSeek service.
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
+	//DeepSeekModel is the primary model used for chat completions.
+	DeepSeekModel string `json:"deepseek_model,omitempty"`
+	//DeepSeekFallbackModel is an optional fallback model used when calls fail.
+	DeepSeekFallbackModel string `json:"deepseek_fallback_model,omitempty"`
 	//TranslateAhead is the number of paragraphs to translate ahead.
 	TranslateAhead int `json:"translate_ahead"`
 	//AppSize is the application size factor
@@ -25,6 +29,8 @@ var Options struct {
 func init() {
 	// Set default options
 	Options.DeepSeekAPIKey = ""
+	Options.DeepSeekModel = "deepseek-chat"
+	Options.DeepSeekFallbackModel = ""
 	Options.TranslateAhead = 6
 	Options.AppSize = 16
 	Options.TranslationDocSize = 3

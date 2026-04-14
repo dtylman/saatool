@@ -2,9 +2,11 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +31,9 @@ type Translator struct {
 	mutex         sync.Mutex
 	stats         *TranslationStatistics
 	style         PromptStyle
+	defaultModel  string
+	fallbackModel string
+	nextModel     string
 	//OnTranslationComplete happens after a paragraph is translated and saved to the project
 	OnTranslationComplete func(paragraphIndex int, translation string)
 }
@@ -45,13 +50,148 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	if style == "" {
 		style = StyleStrict
 	}
+	defaultModel := normalizeModel(config.Options.DeepSeekModel)
+	fallbackModel := strings.TrimSpace(config.Options.DeepSeekFallbackModel)
 	return &Translator{client: client,
 		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
 		stats:         NewTranslationStatistics(),
 		style:         style,
+		defaultModel:  defaultModel,
+		fallbackModel: fallbackModel,
 	}, nil
+}
+
+func normalizeModel(model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return deepseek.DeepSeekChat
+	}
+	return model
+}
+
+// SetDefaultModel updates the default model used for translation calls.
+func (t *Translator) SetDefaultModel(model string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.defaultModel = normalizeModel(model)
+}
+
+// SetFallbackModel updates an optional fallback model used after failed calls.
+func (t *Translator) SetFallbackModel(model string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.fallbackModel = strings.TrimSpace(model)
+}
+
+// UseModelOnce schedules a one-shot model override for the next API call.
+func (t *Translator) UseModelOnce(model string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.nextModel = normalizeModel(model)
+}
+
+func (t *Translator) consumeModel() string {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	if t.nextModel != "" {
+		model := t.nextModel
+		t.nextModel = ""
+		return model
+	}
+	return normalizeModel(t.defaultModel)
+}
+
+func (t *Translator) getFallbackModel() string {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	return strings.TrimSpace(t.fallbackModel)
+}
+
+func (t *Translator) createChatCompletion(ctx context.Context, operation string, request *deepseek.ChatCompletionRequest) (*deepseek.ChatCompletionResponse, error) {
+	if strings.TrimSpace(request.Model) == "" {
+		request.Model = t.consumeModel()
+	} else {
+		request.Model = normalizeModel(request.Model)
+	}
+	resp, err := t.client.CreateChatCompletion(ctx, request)
+	if err == nil && resp != nil && len(resp.Choices) > 0 {
+		return resp, nil
+	}
+
+	primaryErr := validateCompletionResponse(operation, request.Model, resp, err)
+	fallbackModel := t.getFallbackModel()
+	if fallbackModel == "" || fallbackModel == request.Model {
+		return nil, primaryErr
+	}
+
+	fallbackReq := *request
+	fallbackReq.Model = fallbackModel
+	log.Printf("%s failed with model '%s': %v. Retrying with fallback model '%s'", operation, request.Model, primaryErr, fallbackModel)
+	fallbackResp, fallbackErr := t.client.CreateChatCompletion(ctx, &fallbackReq)
+	if fallbackErr == nil && fallbackResp != nil && len(fallbackResp.Choices) > 0 {
+		return fallbackResp, nil
+	}
+
+	fallbackWrappedErr := validateCompletionResponse(operation, fallbackModel, fallbackResp, fallbackErr)
+	return nil, fmt.Errorf("%s failed on primary model '%s' and fallback model '%s': primary=%v fallback=%v", operation, request.Model, fallbackModel, primaryErr, fallbackWrappedErr)
+}
+
+func validateCompletionResponse(operation string, model string, resp *deepseek.ChatCompletionResponse, callErr error) error {
+	if callErr != nil {
+		return fmt.Errorf("%s call failed for model '%s': %w", operation, model, callErr)
+	}
+	if resp == nil {
+		return fmt.Errorf("%s returned nil response for model '%s'", operation, model)
+	}
+	if len(resp.Choices) == 0 {
+		return fmt.Errorf("%s returned no choices for model '%s'", operation, model)
+	}
+	return nil
+}
+
+func (t *Translator) promptExtraParams() map[string]string {
+	book := NewBookDetails(t.project)
+	bookJSON, err := json.Marshal(book)
+	bookDetails := ""
+	if err != nil {
+		log.Printf("failed to marshal book details for prompt context: %v", err)
+	} else {
+		bookDetails = string(bookJSON)
+	}
+
+	bookType := "book"
+	if t.project.GetType() == "article" {
+		bookType = "article"
+	}
+
+	return map[string]string{
+		"book_title":   book.Title,
+		"book_type":    bookType,
+		"book_details": bookDetails,
+	}
+}
+
+func extractTranslationText(doc *TranslationDocument, last bool) (string, error) {
+	if doc == nil {
+		return "", errors.New("translation document is nil")
+	}
+	if len(doc.Target.Paragraphs) == 0 {
+		return "", errors.New("received translation response with empty target paragraphs")
+	}
+	if last {
+		text := doc.Target.Paragraphs[len(doc.Target.Paragraphs)-1].Text
+		if text == "" {
+			return "", errors.New("received empty translation from DeepSeek API")
+		}
+		return text, nil
+	}
+	text := doc.Target.Paragraphs[0].Text
+	if text == "" {
+		return "", errors.New("received empty translation from DeepSeek API")
+	}
+	return text, nil
 }
 
 // SetStyle sets the translation prompt style and updates the project.
@@ -75,8 +215,8 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 		return nil, fmt.Errorf("failed to create user prompt: %v", err)
 	}
 
-	resp, err := t.client.CreateChatCompletion(ctx, &deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
+	request := deepseek.ChatCompletionRequest{
+		Model: t.consumeModel(),
 		Messages: []deepseek.ChatCompletionMessage{
 			{
 				Role:    deepseek.ChatMessageRoleSystem,
@@ -88,17 +228,11 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 			},
 		},
 		JSONMode: true,
-	})
-
-	if resp == nil && err == nil {
-		return nil, errors.New("received nil response from DeepSeek API")
 	}
+
+	resp, err := t.createChatCompletion(ctx, "book details", &request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create chat completion: %v", err)
-	}
-
-	if len(resp.Choices) == 0 {
-		return nil, errors.New("no choices returned from chat completion")
+		return nil, err
 	}
 
 	log.Printf("DeepSeek response: %s", resp.Choices[0].Message.Content)
@@ -222,17 +356,17 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 
 	doc := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
 
-	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodProofread, doc)
+	systemPrompt, err := GetStyledPromptWithParams(t.style, RoleSystem, MethodProofread, doc, t.promptExtraParams())
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodProofread, doc)
+	userPrompt, err := GetStyledPromptWithParams(t.style, RoleUser, MethodProofread, doc, t.promptExtraParams())
 	if err != nil {
 		return fmt.Errorf("failed to create user prompt: %v", err)
 	}
 	request := deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
+		Model: t.consumeModel(),
 		Messages: []deepseek.ChatCompletionMessage{
 			{
 				Role:    deepseek.ChatMessageRoleSystem,
@@ -247,15 +381,9 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 	}
 
 	log.Printf("requesting proofreading for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
-	resp, err := t.client.CreateChatCompletion(ctx, &request)
-	if resp == nil {
-		return errors.New("received nil response from DeepSeek API")
-	}
+	resp, err := t.createChatCompletion(ctx, "proofread", &request)
 	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %v", err)
-	}
-	if len(resp.Choices) == 0 {
-		return errors.New("no choices returned from chat completion")
+		return err
 	}
 	log.Printf("DeepSeek proofreading response: %s", resp.Choices[0].Message.Content)
 	var translationResponse TranslationDocument
@@ -265,9 +393,9 @@ func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) er
 		return fmt.Errorf("failed to extract JSON from response: %v", err)
 	}
 	log.Printf("response: %+v", translationResponse)
-	translation := translationResponse.Target.Paragraphs[0].Text
-	if translation == "" {
-		return errors.New("received empty translation from DeepSeek API")
+	translation, err := extractTranslationText(&translationResponse, false)
+	if err != nil {
+		return err
 	}
 	log.Printf("proofread paragraph %d: %s", paragraphIndex, translation)
 	err = t.project.SetTranslation(paragraphIndex, translation)
@@ -291,18 +419,18 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 
 	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
 
-	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodFix, translationDocument)
+	systemPrompt, err := GetStyledPromptWithParams(t.style, RoleSystem, MethodFix, translationDocument, t.promptExtraParams())
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodFix, translationDocument)
+	userPrompt, err := GetStyledPromptWithParams(t.style, RoleUser, MethodFix, translationDocument, t.promptExtraParams())
 	if err != nil {
 		return fmt.Errorf("failed to create user prompt: %v", err)
 	}
 
 	request := deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
+		Model: t.consumeModel(),
 		Messages: []deepseek.ChatCompletionMessage{
 			{
 				Role:    deepseek.ChatMessageRoleSystem,
@@ -317,17 +445,9 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	}
 
 	log.Printf("requesting fix- translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
-	resp, err := t.client.CreateChatCompletion(ctx, &request)
-	if resp == nil {
-		return errors.New("received nil response from DeepSeek API")
-	}
-
+	resp, err := t.createChatCompletion(ctx, "fix translation", &request)
 	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %v", err)
-	}
-
-	if len(resp.Choices) == 0 {
-		return errors.New("no choices returned from chat completion")
+		return err
 	}
 
 	log.Printf("DeepSeek fix-translation response: %s", resp.Choices[0].Message.Content)
@@ -338,9 +458,9 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 		return fmt.Errorf("failed to extract JSON from response: %v", err)
 	}
 	log.Printf("response: %+v", translationResponse)
-	translation := translationResponse.Target.Paragraphs[0].Text
-	if translation == "" {
-		return errors.New("received empty translation from DeepSeek API")
+	translation, err := extractTranslationText(&translationResponse, false)
+	if err != nil {
+		return err
 	}
 	log.Printf("fixed translated paragraph %d: %s", paragraphIndex, translation)
 	err = t.project.SetTranslation(paragraphIndex, translation)
@@ -383,18 +503,18 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 
 	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
 
-	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodTranslate, translationDocument)
+	systemPrompt, err := GetStyledPromptWithParams(t.style, RoleSystem, MethodTranslate, translationDocument, t.promptExtraParams())
 	if err != nil {
 		return fmt.Errorf("failed to create system prompt: %v", err)
 	}
 
-	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodTranslate, translationDocument)
+	userPrompt, err := GetStyledPromptWithParams(t.style, RoleUser, MethodTranslate, translationDocument, t.promptExtraParams())
 	if err != nil {
 		return fmt.Errorf("failed to create user prompt: %v", err)
 	}
 
 	request := deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
+		Model: t.consumeModel(),
 		Messages: []deepseek.ChatCompletionMessage{
 			{
 				Role:    deepseek.ChatMessageRoleSystem,
@@ -409,17 +529,9 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	}
 
 	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
-	resp, err := t.client.CreateChatCompletion(ctx, &request)
-	if resp == nil {
-		return errors.New("received nil response from DeepSeek API")
-	}
-
+	resp, err := t.createChatCompletion(ctx, "translation", &request)
 	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %v", err)
-	}
-
-	if len(resp.Choices) == 0 {
-		return errors.New("no choices returned from chat completion")
+		return err
 	}
 
 	log.Printf("DeepSeek translation response: %s", resp.Choices[0].Message.Content)
@@ -432,9 +544,9 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	}
 
 	log.Printf("response: %+v", translationResponse)
-	translation := translationResponse.Target.Paragraphs[len(translationResponse.Target.Paragraphs)-1].Text
-	if translation == "" {
-		return errors.New("received empty translation from DeepSeek API")
+	translation, err := extractTranslationText(&translationResponse, true)
+	if err != nil {
+		return err
 	}
 	log.Printf("translated paragraph %d: %s", paragraphIndex, translation)
 
