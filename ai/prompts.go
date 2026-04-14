@@ -78,6 +78,12 @@ func GetPrompt(text string, params map[string]string) (string, error) {
 // and method. It marshals the TranslationDocument to JSON and populates source_lang,
 // target_lang, and data automatically.
 func GetStyledPrompt(style PromptStyle, role PromptRole, method PromptMethod, doc *TranslationDocument) (string, error) {
+	return GetStyledPromptWithParams(style, role, method, doc, nil)
+}
+
+// GetStyledPromptWithParams is like GetStyledPrompt, with optional extra
+// template parameters.
+func GetStyledPromptWithParams(style PromptStyle, role PromptRole, method PromptMethod, doc *TranslationDocument, extraParams map[string]string) (string, error) {
 	params := make(map[string]string)
 	if doc != nil {
 		params["source_lang"] = doc.Source.Language
@@ -87,6 +93,9 @@ func GetStyledPrompt(style PromptStyle, role PromptRole, method PromptMethod, do
 			return "", fmt.Errorf("failed to marshal translation document: %v", err)
 		}
 		params["data"] = string(jsonData)
+	}
+	for k, v := range extraParams {
+		params[k] = v
 	}
 
 	return getPromptByMethod(style, role, method, params)
