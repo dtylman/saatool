@@ -61,7 +61,7 @@ func init() {
 
 // GetPrompt generates a prompt by filling in the provided template text with the given parameters.
 func GetPrompt(text string, params map[string]string) (string, error) {
-	tmpl, err := template.New("prompt").Parse(text)
+	tmpl, err := template.New("prompt").Option("missingkey=error").Parse(text)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse system prompt template: %v", err)
 	}
