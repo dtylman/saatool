@@ -15,6 +15,8 @@ import (
 )
 
 type SettingsView struct {
+	entryAIVendor       *widget.Entry
+	entryAIModel        *widget.Entry
 	entryDeepSeekAPIKey *widget.Entry
 	entryAppSize        *widget.Entry
 	entryTransDocSize   *widget.Entry
@@ -29,6 +31,8 @@ type SettingsView struct {
 
 func NewSettingsView() *SettingsView {
 	sv := &SettingsView{
+		entryAIVendor:       widget.NewEntry(),
+		entryAIModel:        widget.NewEntry(),
 		entryDeepSeekAPIKey: widget.NewEntry(),
 		entryAppSize:        widget.NewEntry(),
 		entryTranslateAhead: widget.NewEntry(),
@@ -39,6 +43,8 @@ func NewSettingsView() *SettingsView {
 		entryDarkMode:       widget.NewCheck("", nil),
 	}
 
+	sv.entryAIVendor.SetText(config.Options.AIVendor)
+	sv.entryAIModel.SetText(config.Options.AIModel)
 	sv.entryDeepSeekAPIKey.SetText(config.Options.DeepSeekAPIKey)
 	sv.entryDeepSeekAPIKey.Password = true
 	sv.entryTranslateAhead.SetText(fmt.Sprintf("%v", config.Options.TranslateAhead))
@@ -58,7 +64,9 @@ func NewSettingsView() *SettingsView {
 			widget.NewFormItem("Target Language", sv.entryTargetLanguage),
 		),
 		buildSettingsSection("AI / API",
-			widget.NewFormItem("DeepSeek API Key", sv.entryDeepSeekAPIKey),
+			widget.NewFormItem("AI Vendor", sv.entryAIVendor),
+			widget.NewFormItem("AI Model", sv.entryAIModel),
+			widget.NewFormItem("API Key", sv.entryDeepSeekAPIKey),
 		),
 		buildSettingsSection("Translation",
 			widget.NewFormItem("Translate Ahead", sv.entryTranslateAhead),
@@ -101,6 +109,8 @@ func (sv *SettingsView) Load() {
 }
 
 func (sv *SettingsView) onSaveTapped() {
+	config.Options.AIVendor = sv.entryAIVendor.Text
+	config.Options.AIModel = sv.entryAIModel.Text
 	config.Options.DeepSeekAPIKey = sv.entryDeepSeekAPIKey.Text
 
 	newSize, err := strconv.Atoi(sv.entryAppSize.Text)

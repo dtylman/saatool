@@ -10,6 +10,10 @@ import (
 
 // Options holds the application configuration options.
 var Options struct {
+	//AIVendor is the AI vendor to use for translation (e.g. "deepseek", "gemini", "ollama").
+	AIVendor string `json:"ai_vendor"`
+	//AIModel is the model name to use. Leave empty to use the vendor's default.
+	AIModel string `json:"ai_model"`
 	//DeepSeekAPIKey is the API key for DeepSeek service.
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
 	//TranslateAhead is the number of paragraphs to translate ahead.
@@ -30,6 +34,8 @@ var Options struct {
 
 func init() {
 	// Set default options
+	Options.AIVendor = "deepseek"
+	Options.AIModel = "deepseek-v4-flash"
 	Options.DeepSeekAPIKey = ""
 	Options.TranslateAhead = 6
 	Options.AppSize = 16
