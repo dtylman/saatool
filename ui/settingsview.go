@@ -45,7 +45,7 @@ func NewSettingsView() *SettingsView {
 
 	sv.entryAIVendor.SetText(config.Options.AIVendor)
 	sv.entryAIModel.SetText(config.Options.AIModel)
-	sv.entryDeepSeekAPIKey.SetText(config.Options.DeepSeekAPIKey)
+	sv.entryDeepSeekAPIKey.SetText(config.Options.AIKey)
 	sv.entryDeepSeekAPIKey.Password = true
 	sv.entryTranslateAhead.SetText(fmt.Sprintf("%v", config.Options.TranslateAhead))
 	sv.entryAutoProofread.SetChecked(config.Options.AutoProofread)
@@ -111,7 +111,7 @@ func (sv *SettingsView) Load() {
 func (sv *SettingsView) onSaveTapped() {
 	config.Options.AIVendor = sv.entryAIVendor.Text
 	config.Options.AIModel = sv.entryAIModel.Text
-	config.Options.DeepSeekAPIKey = sv.entryDeepSeekAPIKey.Text
+	config.Options.AIKey = sv.entryDeepSeekAPIKey.Text
 
 	newSize, err := strconv.Atoi(sv.entryAppSize.Text)
 	if err != nil {

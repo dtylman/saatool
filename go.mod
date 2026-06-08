@@ -12,6 +12,7 @@ require (
 	github.com/urfave/cli/v3 v3.4.1
 	golang.org/x/text v0.36.0
 	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056
+	
 )
 
 require (

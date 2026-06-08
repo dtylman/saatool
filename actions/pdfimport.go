@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/dtylman/saatool/ai"
-	"github.com/dtylman/saatool/config"
+	"github.com/dtylman/goai/tasks/ocr"
+	"github.com/dtylman/goai/tasks/translate"
 	"github.com/dtylman/saatool/translation"
 	"github.com/ledongthuc/pdf"
 	"github.com/urfave/cli/v3"
@@ -126,8 +126,6 @@ func (a *PDFImportAction) Action(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("input file does not exist: %s", input)
 	}
 
-	config.Options.DeepSeekAPIKey = cmd.String("key")
-
 	needOCR := cmd.Bool("ocr")
 	if !needOCR {
 
@@ -209,44 +207,46 @@ func (a *PDFImportAction) processPage(ctx context.Context, cmd *cli.Command, p *
 	for _, text := range p.Content().Text {
 		rt.addText(text)
 	}
+	cc, err := getChatClient(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to get chat client: %w", err)
+	}
+	task := ocr.New(cc)
 
-	req := ai.OCRRequest{
-		Page:     pageNum,
-		OCRTexts: make([]ai.OCRInputText, 0),
+	projectCtx := &ocr.ProjectContext{
 		Title:    a.project.Title,
 		Author:   a.project.Author,
-		Synopsis: a.project.Synopsis,
 		Genre:    a.project.Genre,
+		Synopsis: a.project.Synopsis,
 	}
 
-	// Process the raw text blocks
-	for _, block := range rt.Blocks {
-		req.OCRTexts = append(req.OCRTexts, ai.OCRInputText{
-			Text:     block.Text,
-			FontSize: block.FontSize,
-		})
-	}
-
-	ocrCleaner := ai.NewOCRCleaner()
-	result, err := ocrCleaner.CleanOCR(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("failed to clean OCR text: %w", err)
-	}
-
-	log.Printf("got %d paragraphs from OCR cleaner", len(result.Body))
-
-	for _, para := range result.Body {
-		sourceParagraph := translation.Paragraph{
-			Text: para.Text,
+	// Merge blocks into chunks and send each to the OCR task.
+	chunks := buildChunks(rt.Blocks, maxOCRChunkChars)
+	for chunkIdx, chunk := range chunks {
+		req := &ocr.Request{
+			Text:           chunk,
+			ProjectContext: projectCtx,
 		}
-		a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, sourceParagraph)
-	}
-
-	if result.FootNotes != "" {
-		sourceParagraph := translation.Paragraph{
-			Text: "--------\n" + result.FootNotes,
+		result, err := task.Clean(ctx, req)
+		if err != nil {
+			return fmt.Errorf("page %d chunk %d: failed to clean OCR text: %w", pageNum, chunkIdx, err)
 		}
-		a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, sourceParagraph)
+
+		log.Printf("page %d chunk %d: got body of %d chars", pageNum, chunkIdx, len(result.Body))
+
+		for _, para := range strings.Split(result.Body, "\n\n") {
+			para = strings.TrimSpace(para)
+			if para == "" {
+				continue
+			}
+			a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, translation.Paragraph{Text: para})
+		}
+
+		if result.Footnotes != "" {
+			a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, translation.Paragraph{
+				Text: "--------\n" + result.Footnotes,
+			})
+		}
 	}
 
 	return nil
@@ -273,18 +273,31 @@ func (a *PDFImportAction) createProject(ctx context.Context, cmd *cli.Command) e
 		return nil
 	}
 
-	translator, err := ai.NewTranslator(a.project)
+	cc, err := getChatClient(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to create translator: %w", err)
+		return fmt.Errorf("failed to create chat client: %w", err)
 	}
-	bookDetails, err := translator.GetBookDetails(ctx)
+	task := translate.New(cc)
+	populated, err := task.PopulateProject(ctx, &translate.ProjectContext{
+		Title:  a.project.Title,
+		Author: a.project.Author,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to get book details: %w", err)
 	}
-	a.project.Title = bookDetails.Title
-	a.project.Author = bookDetails.Author
-	a.project.Synopsis = bookDetails.Synopsis
-	a.project.Genre = bookDetails.Genre
+	a.project.Title = populated.Title
+	a.project.Author = populated.Author
+	a.project.Synopsis = populated.Synopsis
+	a.project.Genre = populated.Genre
+	for _, c := range populated.Characters {
+		a.project.Characters = append(a.project.Characters, translation.Character{
+			Name:        c.Name,
+			Gender:      c.Gender,
+			Age:         c.Age,
+			Role:        c.Role,
+			Description: c.Description,
+		})
+	}
 
 	return nil
 }
@@ -430,4 +443,32 @@ func (rt *RawText) pushBlock() {
 	rt.totalFonts = 0
 	rt.totalFontSize = 0
 
+}
+
+// maxOCRChunkChars is the soft maximum character count per OCR request chunk.
+const maxOCRChunkChars = 2500
+
+// buildChunks joins adjacent RawTextBlocks into chunks no larger than maxChars.
+// Blocks are separated by "\n\n". A single block that exceeds maxChars becomes its own chunk.
+func buildChunks(blocks []RawTextBlock, maxChars int) []string {
+	var chunks []string
+	var buf strings.Builder
+	for _, b := range blocks {
+		text := strings.TrimSpace(b.Text)
+		if text == "" {
+			continue
+		}
+		if buf.Len() > 0 && buf.Len()+len(text)+2 > maxChars {
+			chunks = append(chunks, buf.String())
+			buf.Reset()
+		}
+		if buf.Len() > 0 {
+			buf.WriteString("\n\n")
+		}
+		buf.WriteString(text)
+	}
+	if buf.Len() > 0 {
+		chunks = append(chunks, buf.String())
+	}
+	return chunks
 }

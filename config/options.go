@@ -14,8 +14,8 @@ var Options struct {
 	AIVendor string `json:"ai_vendor"`
 	//AIModel is the model name to use. Leave empty to use the vendor's default.
 	AIModel string `json:"ai_model"`
-	//DeepSeekAPIKey is the API key for DeepSeek service.
-	DeepSeekAPIKey string `json:"deepseek_api_key"`
+	//AIKKey is the API key for AI service.
+	AIKey string `json:"ai_api_key"`
 	//TranslateAhead is the number of paragraphs to translate ahead.
 	TranslateAhead int `json:"translate_ahead"`
 	//AppSize is the application size factor
@@ -36,7 +36,7 @@ func init() {
 	// Set default options
 	Options.AIVendor = "deepseek"
 	Options.AIModel = "deepseek-v4-flash"
-	Options.DeepSeekAPIKey = ""
+	Options.AIKey = ""
 	Options.TranslateAhead = 6
 	Options.AppSize = 16
 	Options.TranslationDocSize = 3

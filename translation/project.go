@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dtylman/goai/tasks/translate"
 	"github.com/dtylman/saatool/config"
 )
 
@@ -75,7 +76,7 @@ type Project struct {
 	// E.g. "third-person omniscient, dark and introspective, fast-paced".
 	WritingStyle string `json:"writing_style,omitempty"`
 	// Glossary maps source-language terms to their preferred target-language
-	// translations. Used to keep made-up words, proper nouns, and specialised
+	// translations. Used to keep made-up words, proper nouns, and specialized
 	// terms consistent across the whole book.
 	Glossary map[string]string `json:"glossary,omitempty"`
 	// Source is the source language unit containing paragraphs to be translated.
@@ -90,6 +91,68 @@ type Project struct {
 	LastParagraphIndex int `json:"last_paragraph_index"`
 	// mutex to protect concurrent access
 	mutex sync.Mutex
+}
+
+// ToProjectContext builds a goai translate.ProjectContext from this project.
+func (p *Project) ToProjectContext() *translate.ProjectContext {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	pc := &translate.ProjectContext{
+		Title:        p.Title,
+		Author:       p.Author,
+		Synopsis:     p.Synopsis,
+		Genre:        p.Genre,
+		Instructions: p.WritingStyle,
+		Glossary:     p.Glossary,
+	}
+	for _, c := range p.Characters {
+		pc.Characters = append(pc.Characters, translate.Character{
+			Name:        c.Name,
+			Gender:      c.Gender,
+			Age:         c.Age,
+			Role:        c.Role,
+			Description: c.Description,
+		})
+	}
+	return pc
+}
+
+// PopulateFromProjectContext writes a populated goai ProjectContext back into this project.
+func (p *Project) PopulateFromProjectContext(pc *translate.ProjectContext) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if pc.Title != "" {
+		p.Title = pc.Title
+	}
+	if pc.Author != "" {
+		p.Author = pc.Author
+	}
+	if pc.Synopsis != "" {
+		p.Synopsis = pc.Synopsis
+	}
+	if pc.Genre != "" {
+		p.Genre = pc.Genre
+	}
+	if pc.Instructions != "" {
+		p.WritingStyle = pc.Instructions
+	}
+	if len(pc.Glossary) > 0 {
+		p.Glossary = pc.Glossary
+	}
+	if len(pc.Characters) > 0 {
+		p.Characters = make([]Character, 0, len(pc.Characters))
+		for _, c := range pc.Characters {
+			p.Characters = append(p.Characters, Character{
+				Name:        c.Name,
+				Gender:      c.Gender,
+				Age:         c.Age,
+				Role:        c.Role,
+				Description: c.Description,
+			})
+		}
+	}
 }
 
 // GetTargetLanguage returns the target language of the project.
@@ -269,16 +332,6 @@ func (p *Project) IsEmpty() bool {
 	defer p.mutex.Unlock()
 
 	return len(p.Source.Paragraphs) == 0 && len(p.Target.Paragraphs) == 0
-}
-
-// Lock locks the project for safe concurrent access.
-func (p *Project) Lock() {
-	p.mutex.Lock()
-}
-
-// Unlock unlocks the project.
-func (p *Project) Unlock() {
-	p.mutex.Unlock()
 }
 
 // GetTitle returns the title of the project.

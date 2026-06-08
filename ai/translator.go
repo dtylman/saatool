@@ -11,6 +11,8 @@ import (
 	"time"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
+	"github.com/dtylman/goai"
+	"github.com/dtylman/goai/tasks/translate"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
@@ -51,7 +53,7 @@ const maxRetries = 3
 func NewTranslator(project *translation.Project) (*Translator, error) {
 	log.Printf("creating new translator for project: '%s'", project.GetTitle())
 
-	client := deepseek.NewClient(config.Options.DeepSeekAPIKey)
+	client := deepseek.NewClient(config.Options.AIKey)
 	if client == nil {
 		return nil, fmt.Errorf("failed to create DeepSeek client")
 	}
@@ -64,7 +66,7 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	}
 
 	// ── Cache book details JSON ───────────────────────────────────────────────
-	bookDetailsBytes, err := json.Marshal(NewBookDetails(project))
+	bookDetailsBytes, err := json.Marshal(project.ToProjectContext())
 	if err != nil {
 		log.Printf("warning: could not marshal book details for cache: %v", err)
 	} else {
@@ -275,52 +277,21 @@ func (t *Translator) newTranslationRequestContext(paragraphIndex int) (*translat
 
 // ── GetBookDetails ────────────────────────────────────────────────────────────
 
-// GetBookDetails asks the AI to enrich the project's book metadata.
-// This is separate from the translation pipeline and makes its own API call.
-func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
-	book := NewBookDetails(t.project)
-	bookRequest, err := json.Marshal(book)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal book to JSON: %v", err)
-	}
+// GetBookDetails uses the AI to enrich the project's book metadata via goai PopulateProject.
+func (t *Translator) GetBookDetails(ctx context.Context) error {
+	log.Printf("requesting book details for: %s", t.project.GetTitle())
 
-	log.Printf("requesting book details for: %s", book.Title)
-	resp, err := t.callAPI(ctx, &deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
-		Messages: []deepseek.ChatCompletionMessage{
-			{Role: deepseek.ChatMessageRoleSystem, Content: "You are a librarian."},
-			{
-				Role: deepseek.ChatMessageRoleUser,
-				Content: "Provide required information about the book. I need to fill in the provided JSON template. " +
-					"Use the title and author fields to search for the book. Correct the existing fields and fill in missing fields. " +
-					"Provide details about the main characters, genre, synopsis, and any other relevant information. " +
-					"For 'writing_style', describe the author's narrative voice, tone, mood, and pacing in one or two sentences " +
-					"(e.g. 'first-person, humorous and fast-paced with witty dialogue' or " +
-					"'third-person omniscient, lyrical and introspective, slow-burning tension'). " +
-					"Make an effort to fill in all fields. I am most interested in the gender of the main characters " +
-					"and the writing style, as they are critical for the translation effort. " +
-					"Return the information in the following JSON format: " + string(bookRequest),
-			},
-		},
-		JSONMode: true,
-	})
-	if resp == nil && err == nil {
-		return nil, errors.New("received nil response from DeepSeek API")
-	}
+	chatClient, err := goai.NewClient(config.Options.AIVendor, config.Options.AIModel, config.Options.AIKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create chat completion: %v", err)
+		return fmt.Errorf("failed to create chat client: %w", err)
 	}
-	if len(resp.Choices) == 0 {
-		return nil, errors.New("no choices returned from chat completion")
+	task := translate.New(chatClient)
+	populated, err := task.PopulateProject(ctx, t.project.ToProjectContext())
+	if err != nil {
+		return fmt.Errorf("failed to populate project: %w", err)
 	}
-
-	log.Printf("DeepSeek response: %s", resp.Choices[0].Message.Content)
-	var bookResponse BookDetails
-	extractor := deepseek.NewJSONExtractor(nil)
-	if err := extractor.ExtractJSON(resp, &bookResponse); err != nil {
-		return nil, fmt.Errorf("failed to extract JSON from response: %v", err)
-	}
-	return &bookResponse, nil
+	t.project.PopulateFromProjectContext(populated)
+	return nil
 }
 
 // ── SimpleProofRead ───────────────────────────────────────────────────────────

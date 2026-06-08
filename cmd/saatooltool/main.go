@@ -19,9 +19,19 @@ func main() {
 		Commands: []*cli.Command{},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "deepseek-api-key",
+				Name:    "api-key",
 				Aliases: []string{"key"},
 				Usage:   "API key for DeepSeek.ai",
+			},
+			&cli.StringFlag{
+				Name:  "ai-vendor",
+				Usage: "AI vendor to use for translation (e.g. 'deepseek', 'gemini', 'ollama')",
+				Value: "deepseek",
+			},
+			&cli.StringFlag{
+				Name:  "ai-model",
+				Usage: "Model name to use. Leave empty to use the vendor's default.",
+				Value: "deepseek-v4-flash",
 			},
 		},
 		EnableShellCompletion: true,
