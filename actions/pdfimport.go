@@ -11,6 +11,7 @@ import (
 
 	"github.com/dtylman/goai/tasks/ocr"
 	"github.com/dtylman/goai/tasks/translate"
+	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 	"github.com/ledongthuc/pdf"
 	"github.com/urfave/cli/v3"
@@ -207,7 +208,7 @@ func (a *PDFImportAction) processPage(ctx context.Context, cmd *cli.Command, p *
 	for _, text := range p.Content().Text {
 		rt.addText(text)
 	}
-	cc, err := getChatClient(cmd)
+	cc, err := ai.GetChatClient()
 	if err != nil {
 		return fmt.Errorf("failed to get chat client: %w", err)
 	}
@@ -273,7 +274,7 @@ func (a *PDFImportAction) createProject(ctx context.Context, cmd *cli.Command) e
 		return nil
 	}
 
-	cc, err := getChatClient(cmd)
+	cc, err := ai.GetChatClient()
 	if err != nil {
 		return fmt.Errorf("failed to create chat client: %w", err)
 	}

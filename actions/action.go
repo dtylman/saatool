@@ -2,11 +2,7 @@ package actions
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/dtylman/goai"
-	"github.com/dtylman/goai/chat"
-	"github.com/dtylman/saatool/config"
 	"github.com/urfave/cli/v3"
 )
 
@@ -54,28 +50,4 @@ func AddAction(app *cli.Command, group string, action Action) {
 		app.Commands = append(app.Commands, section)
 	}
 	section.Commands = append(section.Commands, CreateCommandFromAction(action))
-}
-
-func getChatClient(cmd *cli.Command) (chat.Client, error) {
-	aiVendor := cmd.String("ai-vendor")
-	if aiVendor == "" {
-		aiVendor = config.Options.AIVendor
-	}
-	aiModel := cmd.String("ai-model")
-	if aiModel == "" {
-		aiModel = config.Options.AIModel
-	}
-	apiKey := cmd.String("key")
-	if apiKey == "" {
-		apiKey = config.Options.AIKey
-	}
-	if aiVendor == "" {
-		return nil, fmt.Errorf("AI vendor is required (set via --ai-vendor flag or config)")
-	}
-
-	cc, err := goai.NewClient(aiVendor, aiModel, apiKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chat client: %w", err)
-	}
-	return cc, nil
 }

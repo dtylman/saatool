@@ -87,11 +87,10 @@ func (ec *EPubImportAction) Action(ctx context.Context, cmd *cli.Command) error 
 	}
 
 	if cmd.Bool("details") {
-		config.Options.AIKey = cmd.String("deepseek-api-key")
 		if config.Options.AIKey == "" {
-			return fmt.Errorf("deepseek-api-key is required to get book details")
+			return fmt.Errorf("api-key is required to get book details")
 		}
-		err = ec.getBookDetails(ctx, cmd)
+		err = ec.getBookDetails(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get book details: %w", err)
 		}
@@ -107,7 +106,7 @@ func (ec *EPubImportAction) Action(ctx context.Context, cmd *cli.Command) error 
 	return nil
 }
 
-func (ec *EPubImportAction) getBookDetails(ctx context.Context, cmd *cli.Command) error {
+func (ec *EPubImportAction) getBookDetails(ctx context.Context) error {
 	log.Printf("Getting book details for project %s", ec.project.Name)
 	translator, err := ai.NewTranslator(ec.project)
 	if err != nil {
