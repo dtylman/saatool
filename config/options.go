@@ -8,10 +8,22 @@ import (
 	"path"
 )
 
+// AIOptions represents the configuration options for AI services.
+type AIOptions struct {
+	// Vendor is the AI vendor to use (e.g., "deepseek").
+	Vendor string `json:"vendor"`
+	// Model is the specific model to use from the vendor (e.g., "deepseek-chat").
+	Model string `json:"model"`
+	// APIKey for the AI service.
+	APIKey string `json:"api_key"`
+}
+
 // Options holds the application configuration options.
 var Options struct {
-	//DeepSeekAPIKey is the API key for DeepSeek service.
+	//DeepSeekAPIKey  (deprecated) API key for DeepSeek. Use AI.APIKey instead.
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
+	// AI contains the configuration for AI services.
+	AI AIOptions `json:"ai"`
 	//TranslateAhead is the number of paragraphs to translate ahead.
 	TranslateAhead int `json:"translate_ahead"`
 	//AppSize is the application size factor

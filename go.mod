@@ -1,8 +1,6 @@
 module github.com/dtylman/saatool
 
-go 1.24.1
-
-toolchain go1.24.6
+go 1.25.0
 
 require (
 	fyne.io/fyne/v2 v2.7.3
@@ -48,6 +46,7 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
+	github.com/zendev-sh/goai v0.8.4 // indirect
 	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
