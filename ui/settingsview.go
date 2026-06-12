@@ -7,12 +7,15 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/ui/widgets"
 )
 
 type SettingsView struct {
-	entryDeepSeekAPIKey *widget.Entry
+	selectAIVendor      *widget.Select
+	selectAIModel       *widget.Select
+	entryAIAPIKey       *widget.Entry
 	entryAppSize        *widget.Entry
 	entryTransDocSize   *widget.Entry
 	entryTranslateAhead *widget.Entry
@@ -22,16 +25,29 @@ type SettingsView struct {
 }
 
 func NewSettingsView() *SettingsView {
+	vendors := ai.SupportedVendors
+	if len(vendors) == 0 {
+		vendors = []string{"deepseek"}
+	}
+
 	sv := &SettingsView{
-		entryDeepSeekAPIKey: widget.NewEntry(),
+		selectAIVendor:      widget.NewSelect(vendors, nil),
+		selectAIModel:       widget.NewSelect([]string{}, nil),
+		entryAIAPIKey:       widget.NewEntry(),
 		entryAppSize:        widget.NewEntry(),
 		entryTranslateAhead: widget.NewEntry(),
 		entryTransDocSize:   widget.NewEntry(),
 		entryAutoProofread:  widget.NewCheck("", nil),
 	}
 
+	sv.selectAIVendor.OnChanged = func(vendor string) {
+		sv.setModelsForVendor(vendor)
+	}
+
 	sv.view = widget.NewForm(
-		widget.NewFormItem("DeepSeek API Key", sv.entryDeepSeekAPIKey),
+		widget.NewFormItem("AI Vendor", sv.selectAIVendor),
+		widget.NewFormItem("AI Model", sv.selectAIModel),
+		widget.NewFormItem("AI API Key", sv.entryAIAPIKey),
 		widget.NewFormItem("App Sizes Factor", sv.entryAppSize),
 		widget.NewFormItem("Translate Ahead", sv.entryTranslateAhead),
 		widget.NewFormItem("Auto Proofread", sv.entryAutoProofread),
@@ -41,8 +57,21 @@ func NewSettingsView() *SettingsView {
 	Main.ClearActions()
 	Main.AddAction("Save", widgets.IconSave, sv.onSaveTapped)
 
-	sv.entryDeepSeekAPIKey.SetText(config.Options.DeepSeekAPIKey)
-	sv.entryDeepSeekAPIKey.Password = true
+	vendor := config.Options.AI.Vendor
+	if vendor == "" {
+		vendor = vendors[0]
+	}
+	sv.selectAIVendor.SetSelected(vendor)
+
+	sv.setModelsForVendor(vendor)
+	model := config.Options.AI.Model
+	if model == "" && len(sv.selectAIModel.Options) > 0 {
+		model = sv.selectAIModel.Options[0]
+	}
+	sv.selectAIModel.SetSelected(model)
+
+	sv.entryAIAPIKey.SetText(config.Options.AI.APIKey)
+	sv.entryAIAPIKey.Password = true
 	sv.entryTranslateAhead.SetText(fmt.Sprintf("%v", config.Options.TranslateAhead))
 	sv.entryAutoProofread.SetChecked(config.Options.AutoProofread)
 
@@ -51,6 +80,25 @@ func NewSettingsView() *SettingsView {
 
 	return sv
 
+}
+
+func (sv *SettingsView) setModelsForVendor(vendor string) {
+	models := ai.SupportedModels(vendor)
+	if len(models) == 0 {
+		models = []string{""}
+	}
+
+	previousModel := sv.selectAIModel.Selected
+	sv.selectAIModel.Options = models
+	if previousModel != "" {
+		for _, model := range models {
+			if model == previousModel {
+				sv.selectAIModel.SetSelected(previousModel)
+				return
+			}
+		}
+	}
+	sv.selectAIModel.SetSelected(models[0])
 }
 
 func (sv *SettingsView) View() fyne.CanvasObject {
@@ -66,7 +114,9 @@ func (sv *SettingsView) Load() {
 }
 
 func (sv *SettingsView) onSaveTapped() {
-	config.Options.DeepSeekAPIKey = sv.entryDeepSeekAPIKey.Text
+	config.Options.AI.Vendor = sv.selectAIVendor.Selected
+	config.Options.AI.Model = sv.selectAIModel.Selected
+	config.Options.AI.APIKey = sv.entryAIAPIKey.Text
 	newSize, err := strconv.Atoi(sv.entryAppSize.Text)
 	if err != nil {
 		log.Printf("invalid app size: %v", err)
