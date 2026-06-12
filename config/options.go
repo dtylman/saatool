@@ -20,8 +20,6 @@ type AIOptions struct {
 
 // Options holds the application configuration options.
 var Options struct {
-	//DeepSeekAPIKey  (deprecated) API key for DeepSeek. Use AI.APIKey instead.
-	DeepSeekAPIKey string `json:"deepseek_api_key"`
 	// AI contains the configuration for AI services.
 	AI AIOptions `json:"ai"`
 	//TranslateAhead is the number of paragraphs to translate ahead.
@@ -36,7 +34,9 @@ var Options struct {
 
 func init() {
 	// Set default options
-	Options.DeepSeekAPIKey = ""
+	Options.AI.APIKey = ""
+	Options.AI.Vendor = "deepseek"
+	Options.AI.Model = "deepseek-v4-flash"
 	Options.TranslateAhead = 6
 	Options.AppSize = 16
 	Options.TranslationDocSize = 3

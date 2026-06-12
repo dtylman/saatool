@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/dtylman/saatool/ai"
-	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/taylorskalyo/goreader/epub"
 	"github.com/urfave/cli/v3"
@@ -92,10 +91,10 @@ func (ec *EPubImportAction) Action(ctx context.Context, cmd *cli.Command) error 
 	}
 
 	if cmd.Bool("details") {
-		config.Options.DeepSeekAPIKey = cmd.String("deepseek-api-key")
-		if config.Options.DeepSeekAPIKey == "" {
-			return fmt.Errorf("deepseek-api-key is required to get book details")
-		}
+		// config.Options.DeepSeekAPIKey = cmd.String("deepseek-api-key")
+		// if config.Options.DeepSeekAPIKey == "" {
+		// 	return fmt.Errorf("deepseek-api-key is required to get book details")
+		// }
 		err = ec.getBookDetails(ctx, cmd)
 		if err != nil {
 			return fmt.Errorf("failed to get book details: %w", err)

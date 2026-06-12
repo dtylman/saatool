@@ -37,7 +37,7 @@ type Translator struct {
 func NewTranslator(project *translation.Project) (*Translator, error) {
 	log.Printf("creating new translator for project: '%s'", project.GetTitle())
 
-	client := deepseek.NewClient(config.Options.DeepSeekAPIKey)
+	client := deepseek.NewClient("")
 	if client == nil {
 		return nil, fmt.Errorf("failed to create DeepSeek client")
 	}

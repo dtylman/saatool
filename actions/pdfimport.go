@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/dtylman/saatool/ai"
-	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 	"github.com/ledongthuc/pdf"
 	"github.com/urfave/cli/v3"
@@ -124,18 +123,17 @@ func (a *PDFImportAction) Action(ctx context.Context, cmd *cli.Command) error {
 
 	log.Printf("Importing PDF file: %s\n", input)
 
-	var err error
-
 	// check if file exists
-	if _, err := os.Stat(input); os.IsNotExist(err) {
+
+	_, err := os.Stat(input)
+	if os.IsNotExist(err) {
 		return fmt.Errorf("input file does not exist: %s", input)
 	}
 
-	config.Options.DeepSeekAPIKey = cmd.String("key")
+	//config.Options.DeepSeekAPIKey = cmd.String("key")
 
 	needOCR := cmd.Bool("ocr")
 	if !needOCR {
-
 		needOCR, err = a.needsOCR(input)
 		if err != nil {
 			return fmt.Errorf("failed to determine if OCR is needed: %w", err)
@@ -232,7 +230,10 @@ func (a *PDFImportAction) processPage(ctx context.Context, cmd *cli.Command, p *
 		})
 	}
 
-	ocrCleaner := ai.NewOCRCleaner()
+	ocrCleaner, err := ai.NewOCRCleaner()
+	if err != nil {
+		return fmt.Errorf("failed to create OCR cleaner: %w", err)
+	}
 	result, err := ocrCleaner.CleanOCR(ctx, &req)
 	if err != nil {
 		return fmt.Errorf("failed to clean OCR text: %w", err)
@@ -307,9 +308,11 @@ func (a *PDFImportAction) needsOCR(fileName string) (bool, error) {
 	// heuristic: if the PDF has very little extractable text compared to the number of pages, OCR is likely needed.
 	texts, err := reader.GetStyledTexts()
 	if err != nil {
+		log.Printf("Failed to extract text from PDF: %v", err)
 		return true, nil // If text extraction fails, assume OCR is needed.
 	}
 	if len(texts) == 0 {
+		log.Println("No text extracted from PDF, OCR is likely needed")
 		return true, nil
 	}
 	// Count total words extracted
@@ -320,6 +323,7 @@ func (a *PDFImportAction) needsOCR(fileName string) (bool, error) {
 	// If average words per page is very low, assume mostly images
 	numPages := reader.NumPage()
 	if numPages == 0 {
+		log.Println("PDF has no pages, OCR is likely needed")
 		return true, nil
 	}
 	avgWordsPerPage := float64(wordCount) / float64(numPages)
