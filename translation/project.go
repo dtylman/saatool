@@ -52,6 +52,15 @@ type Unit struct {
 	Paragraphs []Paragraph `json:"paragraphs"`
 }
 
+// BookDetails represents the details of a book.
+type BookDetails struct {
+	Title          string      `json:"title"`
+	Author         string      `json:"author"`
+	Synopsis       string      `json:"synopsis"`
+	Genre          string      `json:"genre"`
+	MainCharacters []Character `json:"main_characters"`
+}
+
 // Project represents a translation project with source and target languages and paragraphs.
 type Project struct {
 	// Name is the name of the project.
@@ -265,16 +274,6 @@ func (p *Project) IsEmpty() bool {
 	return len(p.Source.Paragraphs) == 0 && len(p.Target.Paragraphs) == 0
 }
 
-// Lock locks the project for safe concurrent access.
-func (p *Project) Lock() {
-	p.mutex.Lock()
-}
-
-// Unlock unlocks the project.
-func (p *Project) Unlock() {
-	p.mutex.Unlock()
-}
-
 // GetTitle returns the title of the project.
 func (p *Project) GetTitle() string {
 	p.mutex.Lock()
@@ -299,6 +298,20 @@ func (p *Project) SetPosition(view bool, index int) {
 
 	p.LastSourceView = view
 	p.LastParagraphIndex = index
+}
+
+// BookDetails returns the book details of the project.
+func (p *Project) BookDetails() *BookDetails {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return &BookDetails{
+		Title:          p.Title,
+		Author:         p.Author,
+		Synopsis:       p.Synopsis,
+		Genre:          p.Genre,
+		MainCharacters: p.Characters,
+	}
 }
 
 // DeleteProject deletes the project file from disk.

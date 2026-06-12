@@ -61,8 +61,8 @@ func (t *Translator) SetStyle(style PromptStyle) {
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
-func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
-	book := NewBookDetails(t.project)
+func (t *Translator) GetBookDetails(ctx context.Context) (*translation.BookDetails, error) {
+	book := t.project.BookDetails()
 
 	log.Printf("requesting book details for: %s", book.Title)
 
@@ -103,7 +103,7 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*BookDetails, error) {
 
 	log.Printf("DeepSeek response: %s", resp.Choices[0].Message.Content)
 
-	var bookResponse BookDetails
+	var bookResponse translation.BookDetails
 	extractor := deepseek.NewJSONExtractor(nil)
 	err = extractor.ExtractJSON(resp, &bookResponse)
 	if err != nil {
