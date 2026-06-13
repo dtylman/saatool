@@ -97,6 +97,16 @@ func (t *Translator) ClearTranslationInProgress(paragraphID string) {
 // newTranslationDocument creates a new translation document for the specified paragraph index.
 func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, docSize int) *TranslationDocument {
 
+	// req := translate.Request{
+	// 	ProjectContext: t.project.GetTranslationContext(),
+	// 	SourceLanguage: rc.sourceLang,
+	// 	TargetLanguage: rc.targetLang,
+	// 	Text:           "",
+	// 	PreviousSource: []string{},
+	// 	PreviousTarget: []string{},
+	// 	Style:          "",
+	// }
+
 	doc := &TranslationDocument{
 		Source: translation.Unit{
 			Language:   sourceLang,
@@ -344,8 +354,6 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
 	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
-
-	//req := translate.Request{}
 
 	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodTranslate, translationDocument)
 	if err != nil {

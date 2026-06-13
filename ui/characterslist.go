@@ -3,20 +3,20 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	"github.com/dtylman/saatool/translation"
+	"github.com/dtylman/aitasks/tasks/translate"
 )
 
 // CharacterList represents the character selection UI.
 type CharacterList struct {
 	// Characters holds the list of characters in the project.
-	Characters []translation.Character
+	Characters []translate.Character
 	View       fyne.CanvasObject
 }
 
 // NewCharactersList creates a new CharactersList instance.
 func NewCharactersList() *CharacterList {
 	cl := &CharacterList{
-		Characters: []translation.Character{},
+		Characters: []translate.Character{},
 	}
 
 	cl.View = widget.NewList(cl.len, cl.createItem, cl.updateItem)
@@ -24,7 +24,7 @@ func NewCharactersList() *CharacterList {
 }
 
 // SetCharacters updates the CharacterList with the given characters.
-func (cl *CharacterList) SetCharacters(characters []translation.Character) {
+func (cl *CharacterList) SetCharacters(characters []translate.Character) {
 	cl.Characters = characters
 	// cl.View.Objects = nil // Clear previous items
 	// for _, character := range cl.Characters {

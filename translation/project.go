@@ -17,20 +17,6 @@ import (
 	"github.com/dtylman/saatool/config"
 )
 
-// Character represents a character in a translation project.
-type Character struct {
-	// Name is the name of the character.
-	Name string `json:"name"`
-	// Gender is the gender of the character
-	Gender string `json:"gender,omitempty"`
-	// Age is the age of the character.
-	Age int `json:"age,omitempty"`
-	// Role is the role of the character in the story.
-	Role string `json:"role,omitempty"`
-	// Description is a brief description of the character.
-	Description string `json:"description,omitempty"`
-}
-
 // Paragraph represents a single paragraph in a translation project.
 type Paragraph struct {
 	// ID is a unique identifier for the paragraph.
@@ -52,15 +38,6 @@ type Unit struct {
 	// Paragraphs is a list of paragraphs in this unit.
 	Paragraphs []Paragraph `json:"paragraphs"`
 }
-
-// // BookDetails represents the details of a book.
-// type BookDetails struct {
-// 	Title          string      `json:"title"`
-// 	Author         string      `json:"author"`
-// 	Synopsis       string      `json:"synopsis"`
-// 	Genre          string      `json:"genre"`
-// 	MainCharacters []Character `json:"main_characters"`
-// }
 
 // Project represents a translation project with source and target languages and paragraphs.
 type Project struct {
