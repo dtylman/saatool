@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	deepseek "github.com/cohesion-org/deepseek-go"
 	"github.com/dtylman/aitasks/tasks/translate"
 
 	"github.com/dtylman/saatool/config"
@@ -25,7 +24,6 @@ type TranslationDocument struct {
 
 // Translator is responsible for translating text using DeepSeek API
 type Translator struct {
-	client        *deepseek.Client
 	task          *translate.Task
 	project       *translation.Project
 	inTranslation map[string]time.Time
@@ -40,10 +38,6 @@ type Translator struct {
 func NewTranslator(project *translation.Project) (*Translator, error) {
 	log.Printf("creating new translator for project: '%s'", project.GetTitle())
 
-	client := deepseek.NewClient("")
-	if client == nil {
-		return nil, fmt.Errorf("failed to create DeepSeek client")
-	}
 	llm, err := GetLanguageModel()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get language model: %v", err)
@@ -52,7 +46,7 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	if style == "" {
 		style = StyleStrict
 	}
-	return &Translator{client: client,
+	return &Translator{
 		task:          translate.New(llm),
 		project:       project,
 		inTranslation: make(map[string]time.Time),
@@ -94,8 +88,8 @@ func (t *Translator) ClearTranslationInProgress(paragraphID string) {
 	delete(t.inTranslation, paragraphID)
 }
 
-// newTranslationDocument creates a new translation document for the specified paragraph index.
-func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, historySize int) (*translate.Request, error) {
+// newTranslationRequest creates a new translation document for the specified paragraph index.
+func (t *Translator) newTranslationRequest(paragraphIndex int, sourceLang string, targetLang string, historySize int) (*translate.Request, error) {
 	req := translate.Request{
 		ProjectContext: t.project.GetTranslationContext(),
 		SourceLanguage: sourceLang,
@@ -135,10 +129,7 @@ type translationRequestContext struct {
 	paragraphIndex  int
 }
 
-func (t *Translator) newTranslationRequestContext(paragraphIndex int) (*translationRequestContext, error) {
-	if t.client == nil {
-		return nil, errors.New("DeepSeek client is not initialized")
-	}
+func (t *Translator) newRequestContext(paragraphIndex int) (*translationRequestContext, error) {
 	sourceParagraph, err := t.project.GetSourceParagraph(paragraphIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get source paragraph: %v", err)
@@ -166,7 +157,7 @@ func (t *Translator) newTranslationRequestContext(paragraphIndex int) (*translat
 // FixTranslation re-translates the specified paragraph to fix its translation.
 func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) error {
 	log.Printf("fixing translation for paragraph %d", paragraphIndex)
-	rc, err := t.newTranslationRequestContext(paragraphIndex)
+	rc, err := t.newRequestContext(paragraphIndex)
 	if err != nil {
 		return err
 	}
@@ -174,12 +165,12 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	translationDocument, err := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
+	req, err := t.newTranslationRequest(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
 	if err != nil {
 		return fmt.Errorf("failed to create translation document: %v", err)
 	}
 
-	response, err := t.task.Fix(ctx, translationDocument, translationDocument.Text)
+	response, err := t.task.Fix(ctx, req, req.Text)
 	if err != nil {
 		return fmt.Errorf("failed to translate: %v", err)
 	}
@@ -205,7 +196,7 @@ func (t *Translator) Translate(ctx context.Context, paragraphIndex int) error {
 func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int) error {
 	log.Printf("translating paragraph %d", paragraphIndex)
 
-	rc, err := t.newTranslationRequestContext(paragraphIndex)
+	rc, err := t.newRequestContext(paragraphIndex)
 	if err != nil {
 		return err
 	}
@@ -214,14 +205,14 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	translationDocument, err := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
+	req, err := t.newTranslationRequest(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
 	if err != nil {
 		return fmt.Errorf("failed to create translation document: %v", err)
 	}
 
 	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
 
-	response, err := t.task.Translate(ctx, translationDocument)
+	response, err := t.task.Translate(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to translate: %v", err)
 	}
