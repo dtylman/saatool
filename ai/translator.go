@@ -14,6 +14,11 @@ import (
 	"github.com/dtylman/saatool/translation"
 )
 
+// StyleNames returns the list of available style names from prompts.json.
+func StyleNames() []string {
+	return []string{"academic", "archaic", "literary", "rap", "strict"}
+}
+
 // TranslationDocument represents a specific document structure for translation requests and responses.
 type TranslationDocument struct {
 	// Source is the source language unit containing paragraphs to be translated.

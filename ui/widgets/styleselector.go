@@ -26,8 +26,3 @@ func NewStyleSelector(selected string, onChange func(string)) *StyleSelector {
 	s.ExtendBaseWidget(s)
 	return s
 }
-
-// SelectedStyle returns the currently selected PromptStyle.
-func (s *StyleSelector) SelectedStyle() ai.PromptStyle {
-	return ai.PromptStyle(s.Selected)
-}

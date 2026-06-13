@@ -76,7 +76,7 @@ func (pv *ProjectEditView) onSaveTapped() {
 	pv.project.Genre = pv.entryGenre.Text
 	pv.project.Source.Language = pv.entryFromLang.Text
 	pv.project.Target.Language = pv.entryToLang.Text
-	pv.project.Style = string(pv.styleSelector.SelectedStyle())
+	pv.project.Style = pv.styleSelector.Selected
 
 	_, err := pv.project.Save()
 	if err != nil {
