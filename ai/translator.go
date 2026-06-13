@@ -95,55 +95,37 @@ func (t *Translator) ClearTranslationInProgress(paragraphID string) {
 }
 
 // newTranslationDocument creates a new translation document for the specified paragraph index.
-func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, docSize int) *TranslationDocument {
-
-	// req := translate.Request{
-	// 	ProjectContext: t.project.GetTranslationContext(),
-	// 	SourceLanguage: rc.sourceLang,
-	// 	TargetLanguage: rc.targetLang,
-	// 	Text:           "",
-	// 	PreviousSource: []string{},
-	// 	PreviousTarget: []string{},
-	// 	Style:          "",
-	// }
-
-	doc := &TranslationDocument{
-		Source: translation.Unit{
-			Language:   sourceLang,
-			Paragraphs: make([]translation.Paragraph, 0),
-		},
-		Target: translation.Unit{
-			Language:   targetLang,
-			Paragraphs: make([]translation.Paragraph, 0),
-		},
+func (t *Translator) newTranslationDocument(paragraphIndex int, sourceLang string, targetLang string, historySize int) (*translate.Request, error) {
+	req := translate.Request{
+		ProjectContext: t.project.GetTranslationContext(),
+		SourceLanguage: sourceLang,
+		TargetLanguage: targetLang,
+		PreviousSource: make([]string, 0),
+		PreviousTarget: make([]string, 0),
+		Style:          t.project.Style,
 	}
 
-	previousParagraphsCount := docSize - 1
-	if previousParagraphsCount < 0 {
-		previousParagraphsCount = 0
-	}
-	fromParagraphIndex := paragraphIndex - previousParagraphsCount
-	if fromParagraphIndex < 0 {
-		fromParagraphIndex = 0
-	}
-	for i := fromParagraphIndex; i <= paragraphIndex; i++ {
-		sourceParagraph, err := t.project.GetSourceParagraph(i)
+	from := paragraphIndex - historySize
+	for i := from; i < paragraphIndex; i++ {
+		source, err := t.project.GetSourceParagraph(i)
 		if err != nil {
-			log.Printf("failed to get source paragraph %d: %v", i, err)
-			continue
+			return nil, fmt.Errorf("failed to get source paragraph %d: %v", i, err)
 		}
-		doc.Source.Paragraphs = append(doc.Source.Paragraphs, sourceParagraph)
-		targetParagraph, err := t.project.GetTargetParagraph(i)
+		target, err := t.project.GetTargetParagraph(i)
 		if err != nil {
-			log.Printf("failed to get target paragraph %d: %v", i, err)
-			targetParagraph = translation.Paragraph{
-				ID:   sourceParagraph.ID,
-				Text: "",
-			}
+			return nil, fmt.Errorf("failed to get target paragraph %d: %v", i, err)
 		}
-		doc.Target.Paragraphs = append(doc.Target.Paragraphs, targetParagraph)
+		req.PreviousSource = append(req.PreviousSource, source.Text)
+		req.PreviousTarget = append(req.PreviousTarget, target.Text)
 	}
-	return doc
+
+	sourceParagraph, err := t.project.GetSourceParagraph(paragraphIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get source paragraph %d: %v", paragraphIndex, err)
+	}
+	req.Text = sourceParagraph.Text
+
+	return &req, nil
 }
 
 type translationRequestContext struct {
@@ -181,75 +163,6 @@ func (t *Translator) newTranslationRequestContext(paragraphIndex int) (*translat
 	}, nil
 }
 
-// SimpleProofRead performs a simple proofread of the specified paragraph.
-func (t *Translator) SimpleProofRead(ctx context.Context, paragraphIndex int) error {
-	log.Printf("proofreading paragraph %d", paragraphIndex)
-	rc, err := t.newTranslationRequestContext(paragraphIndex)
-	if err != nil {
-		return err
-	}
-	defer t.ClearTranslationInProgress(rc.sourceParagraph.ID)
-	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
-	defer t.stats.Completed(rc.sourceParagraph.ID)
-
-	doc := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
-
-	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodProofread, doc)
-	if err != nil {
-		return fmt.Errorf("failed to create system prompt: %v", err)
-	}
-
-	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodProofread, doc)
-	if err != nil {
-		return fmt.Errorf("failed to create user prompt: %v", err)
-	}
-	request := deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
-		Messages: []deepseek.ChatCompletionMessage{
-			{
-				Role:    deepseek.ChatMessageRoleSystem,
-				Content: systemPrompt,
-			},
-			{
-				Role:    deepseek.ChatMessageRoleUser,
-				Content: userPrompt,
-			},
-		},
-		JSONMode: true,
-	}
-
-	log.Printf("requesting proofreading for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
-	resp, err := t.client.CreateChatCompletion(ctx, &request)
-	if resp == nil {
-		return errors.New("received nil response from DeepSeek API")
-	}
-	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %v", err)
-	}
-	if len(resp.Choices) == 0 {
-		return errors.New("no choices returned from chat completion")
-	}
-	log.Printf("DeepSeek proofreading response: %s", resp.Choices[0].Message.Content)
-	var translationResponse TranslationDocument
-	extractor := deepseek.NewJSONExtractor(nil)
-	err = extractor.ExtractJSON(resp, &translationResponse)
-	if err != nil {
-		return fmt.Errorf("failed to extract JSON from response: %v", err)
-	}
-	log.Printf("response: %+v", translationResponse)
-	translation := translationResponse.Target.Paragraphs[0].Text
-	if translation == "" {
-		return errors.New("received empty translation from DeepSeek API")
-	}
-	log.Printf("proofread paragraph %d: %s", paragraphIndex, translation)
-	err = t.project.SetTranslation(paragraphIndex, translation)
-	if err != nil {
-		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
-	}
-	t.onTranslated(paragraphIndex, translation)
-	return nil
-}
-
 // FixTranslation re-translates the specified paragraph to fix its translation.
 func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) error {
 	log.Printf("fixing translation for paragraph %d", paragraphIndex)
@@ -261,83 +174,31 @@ func (t *Translator) FixTranslation(ctx context.Context, paragraphIndex int) err
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
-
-	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodFix, translationDocument)
+	translationDocument, err := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, 0)
 	if err != nil {
-		return fmt.Errorf("failed to create system prompt: %v", err)
+		return fmt.Errorf("failed to create translation document: %v", err)
 	}
 
-	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodFix, translationDocument)
+	response, err := t.task.Fix(ctx, translationDocument, translationDocument.Text)
 	if err != nil {
-		return fmt.Errorf("failed to create user prompt: %v", err)
+		return fmt.Errorf("failed to translate: %v", err)
 	}
 
-	request := deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
-		Messages: []deepseek.ChatCompletionMessage{
-			{
-				Role:    deepseek.ChatMessageRoleSystem,
-				Content: systemPrompt,
-			},
-			{
-				Role:    deepseek.ChatMessageRoleUser,
-				Content: userPrompt,
-			},
-		},
-		JSONMode: true,
-	}
-
-	log.Printf("requesting fix- translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
-	resp, err := t.client.CreateChatCompletion(ctx, &request)
-	if resp == nil {
-		return errors.New("received nil response from DeepSeek API")
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %v", err)
-	}
-
-	if len(resp.Choices) == 0 {
-		return errors.New("no choices returned from chat completion")
-	}
-
-	log.Printf("DeepSeek fix-translation response: %s", resp.Choices[0].Message.Content)
-	var translationResponse TranslationDocument
-	extractor := deepseek.NewJSONExtractor(nil)
-	err = extractor.ExtractJSON(resp, &translationResponse)
-	if err != nil {
-		return fmt.Errorf("failed to extract JSON from response: %v", err)
-	}
-	log.Printf("response: %+v", translationResponse)
-	translation := translationResponse.Target.Paragraphs[0].Text
-	if translation == "" {
+	if response.Translation == "" {
 		return errors.New("received empty translation from DeepSeek API")
 	}
-	log.Printf("fixed translated paragraph %d: %s", paragraphIndex, translation)
-	err = t.project.SetTranslation(paragraphIndex, translation)
+	err = t.project.SetTranslation(paragraphIndex, response.Translation)
 	if err != nil {
 		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
 	}
-	t.onTranslated(paragraphIndex, translation)
+	t.onTranslated(paragraphIndex, response.Translation)
 	return nil
 }
 
 // Translate translates the specified paragraph and updates the project with the translation.
 func (t *Translator) Translate(ctx context.Context, paragraphIndex int) error {
 	log.Printf("translating paragraph %d", paragraphIndex)
-	err := t.TranslateParagraph(ctx, paragraphIndex)
-	if err != nil {
-		return err
-	}
-	if config.Options.AutoProofread {
-		log.Printf("auto-proofreading paragraph %d", paragraphIndex)
-		err = t.SimpleProofRead(ctx, paragraphIndex)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return t.TranslateParagraph(ctx, paragraphIndex)
 }
 
 // Translate translates a paragraph from the source language to the target language using the DeepSeek API and returns the translated text.
@@ -353,69 +214,28 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	t.stats.Started(rc.sourceParagraph.ID, len(rc.sourceParagraph.Text))
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
-	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
-
-	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodTranslate, translationDocument)
+	translationDocument, err := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
 	if err != nil {
-		return fmt.Errorf("failed to create system prompt: %v", err)
-	}
-
-	userPrompt, err := GetStyledPrompt(t.style, RoleUser, MethodTranslate, translationDocument)
-	if err != nil {
-		return fmt.Errorf("failed to create user prompt: %v", err)
-	}
-
-	request := deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
-		Messages: []deepseek.ChatCompletionMessage{
-			{
-				Role:    deepseek.ChatMessageRoleSystem,
-				Content: systemPrompt,
-			},
-			{
-				Role:    deepseek.ChatMessageRoleUser,
-				Content: userPrompt,
-			},
-		},
-		JSONMode: true,
+		return fmt.Errorf("failed to create translation document: %v", err)
 	}
 
 	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
-	resp, err := t.client.CreateChatCompletion(ctx, &request)
-	if resp == nil {
-		return errors.New("received nil response from DeepSeek API")
-	}
 
+	response, err := t.task.Translate(ctx, translationDocument)
 	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %v", err)
+		return fmt.Errorf("failed to translate: %v", err)
 	}
 
-	if len(resp.Choices) == 0 {
-		return errors.New("no choices returned from chat completion")
-	}
+	log.Printf("response: %+v", response)
 
-	log.Printf("DeepSeek translation response: %s", resp.Choices[0].Message.Content)
+	log.Printf("translated paragraph %d: %s", paragraphIndex, response.Translation)
 
-	var translationResponse TranslationDocument
-	extractor := deepseek.NewJSONExtractor(nil)
-	err = extractor.ExtractJSON(resp, &translationResponse)
-	if err != nil {
-		return fmt.Errorf("failed to extract JSON from response: %v", err)
-	}
-
-	log.Printf("response: %+v", translationResponse)
-	translation := translationResponse.Target.Paragraphs[len(translationResponse.Target.Paragraphs)-1].Text
-	if translation == "" {
-		return errors.New("received empty translation from DeepSeek API")
-	}
-	log.Printf("translated paragraph %d: %s", paragraphIndex, translation)
-
-	err = t.project.SetTranslation(paragraphIndex, translation)
+	err = t.project.SetTranslation(paragraphIndex, response.Translation)
 	if err != nil {
 		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
 	}
 
-	t.onTranslated(paragraphIndex, translation)
+	t.onTranslated(paragraphIndex, response.Translation)
 	return nil
 
 }
