@@ -7,8 +7,8 @@ github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dtylman/aitasks v0.0.0-20260611143006-e7b2c0adac4c h1:JAVk4fb3QPOVfl2V+q+pXfFpDseuWp0y4pbZlzP2Mkg=
-github.com/dtylman/aitasks v0.0.0-20260611143006-e7b2c0adac4c/go.mod h1:3xhH5cgmtPORq2beRDA4SYzfN5TKKR2GP5tnA6lQHK4=
+github.com/dtylman/aitasks v0.0.0-20260613060018-a71887619b0d h1:MyZkQ2fj/PMgn9e2A6IGZilUpaosPgUP1zG0lD/eWD0=
+github.com/dtylman/aitasks v0.0.0-20260613060018-a71887619b0d/go.mod h1:3xhH5cgmtPORq2beRDA4SYzfN5TKKR2GP5tnA6lQHK4=
 github.com/emvi/iso-639-1 v1.1.1 h1:7jrl1Sqw9ZYWmCOaH+cpQotLbGr/khwlLPXlBvE8WXU=
 github.com/emvi/iso-639-1 v1.1.1/go.mod h1:CSA53/Tx0xF9bk2DEA0Mr0wTdIxq7pqoVZgBOfoL5GI=
 github.com/felixge/fgprof v0.9.3 h1:VvyZxILNuCiUCSXtPtYmmtGvb65nqXh2QFWc0Wpf2/g=

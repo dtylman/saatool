@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	fyne.io/fyne/v2 v2.7.3
-	github.com/dtylman/aitasks v0.0.0-20260611143006-e7b2c0adac4c
+	github.com/dtylman/aitasks v0.0.0-20260613060018-a71887619b0d
 	github.com/emvi/iso-639-1 v1.1.1
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/stretchr/testify v1.11.1
