@@ -14,14 +14,6 @@ import (
 	"github.com/dtylman/saatool/translation"
 )
 
-// TranslationDocument represents a specific document structure for translation requests and responses.
-type TranslationDocument struct {
-	// Source is the source language unit containing paragraphs to be translated.
-	Source translation.Unit `json:"source"`
-	// Target is the target language unit where the translated paragraphs will be stored.
-	Target translation.Unit `json:"target"`
-}
-
 // Translator is responsible for translating text using DeepSeek API
 type Translator struct {
 	task          *translate.Task
@@ -49,7 +41,6 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 		task:          task,
 		project:       project,
 		inTranslation: make(map[string]time.Time),
-		mutex:         sync.Mutex{},
 		stats:         NewTranslationStatistics(),
 	}, nil
 }

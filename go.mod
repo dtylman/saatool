@@ -1,5 +1,7 @@
 module github.com/dtylman/saatool
 
+replace github.com/dtylman/aitasks => /home/danny/src/aitasks
+
 go 1.25.1
 
 require (
