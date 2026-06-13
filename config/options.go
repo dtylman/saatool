@@ -33,14 +33,21 @@ var Options struct {
 }
 
 func init() {
-	// Set default options
-	Options.AI.APIKey = ""
-	Options.AI.Vendor = "deepseek"
-	Options.AI.Model = "deepseek-v4-flash"
-	Options.TranslateAhead = 6
-	Options.AppSize = 16
-	Options.TranslationDocSize = 3
-	Options.AutoProofread = true
+	err := LoadOptions()
+	if err != nil {
+		log.Printf("failed to load options, using defaults: %v", err)
+		// Set default options
+		Options.AI.APIKey = ""
+		Options.AI.Vendor = "deepseek"
+		Options.AI.Model = "deepseek-v4-flash"
+		Options.TranslateAhead = 6
+		Options.AppSize = 16
+		Options.TranslationDocSize = 3
+		Options.AutoProofread = true
+	} else {
+		log.Printf("options loaded successfully: %+v", Options)
+	}
+
 }
 
 // LoadOptions loads options from the config file, if it exists. Otherwise, defaults are used.

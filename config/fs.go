@@ -18,24 +18,33 @@ func AppDir() string {
 		}
 	}
 	dir := os.Getenv("FILESDIR")
+	var err error
 	if dir != "" {
-		log.Printf("using FILESDIR env var: %v", dir)
-		return dir
+		log.Printf("using FILESDIR environment variable for app dir: %v", dir)
+	}
+	if dir == "" {
+		dir, err = os.UserConfigDir()
+		if err == nil && dir != "" {
+			log.Printf("using user config dir for app dir: %v", dir)
+		}
+	}
+	if dir == "" {
+		dir, err = os.UserHomeDir()
+		if err == nil && dir != "" {
+			log.Printf("using user home dir for app dir: %v", dir)
+		}
 	}
 
-	dir, err := os.UserConfigDir()
-	if err == nil && dir != "" {
-		log.Printf("using user config dir: %v", dir)
-		return dir
+	if dir != "" {
+		appDir := path.Join(dir, "saatool")
+		err = os.MkdirAll(appDir, 0755)
+		if err != nil {
+			log.Fatalf("failed to create app dir %s: %v", appDir, err)
+		}
+		return appDir
 	}
 
-	dir, err = os.UserHomeDir()
-	if err == nil && dir != "" {
-		log.Printf("using user home dir: %v", dir)
-		return dir
-	}
-
-	log.Fatal("failed to determine app dir")
+	log.Fatal("failed to determine app directory, set FILESDIR environment variable to specify the directory")
 	return ""
 }
 
