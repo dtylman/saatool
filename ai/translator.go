@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -193,6 +194,16 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 		return fmt.Errorf("failed to create translation document: %v", err)
 	}
 
+	if strings.TrimSpace(req.Text) == "" {
+		log.Printf("source paragraph %d is empty, setting translation to empty string", paragraphIndex)
+		err = t.project.SetTranslation(paragraphIndex, "")
+		if err != nil {
+			return fmt.Errorf("failed to set empty translation for paragraph %d: %v", paragraphIndex, err)
+		}
+		t.onTranslated(paragraphIndex, "")
+		return nil
+	}
+
 	log.Printf("requesting translation for paragraph %d from %s to %s", paragraphIndex, rc.sourceLang, rc.targetLang)
 
 	response, err := t.task.Translate(ctx, req)
@@ -204,6 +215,9 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 
 	log.Printf("translated paragraph %d: %s", paragraphIndex, response.Translation)
 
+	if response.Translation == "" {
+		return errors.New("received empty translation from LLM")
+	}
 	err = t.project.SetTranslation(paragraphIndex, response.Translation)
 	if err != nil {
 		return fmt.Errorf("failed to set translation for paragraph %d: %v", paragraphIndex, err)
