@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"text/template"
-
-	"github.com/dtylman/aitasks/tasks/translate"
 )
 
 // PromptStyle represents a translation style flavor.
@@ -101,18 +99,6 @@ func StyleNames() []string {
 		names[i] = s.Style
 	}
 	return names
-}
-
-// GetBookDetailsPrompt looks up a book_details prompt template by style and role,
-// marshaling the BookDetails struct to JSON for template rendering.
-func GetBookDetailsPrompt(style PromptStyle, role PromptRole, book *translate.ProjectContext) (string, error) {
-	bookJSON, err := json.Marshal(book)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal book details: %v", err)
-	}
-	return getPromptByMethod(style, role, MethodBookDetails, map[string]string{
-		"book_details": string(bookJSON),
-	})
 }
 
 // getPromptByMethod is the internal lookup/render for any method with arbitrary params.

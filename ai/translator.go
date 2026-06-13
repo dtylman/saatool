@@ -10,6 +10,7 @@ import (
 
 	deepseek "github.com/cohesion-org/deepseek-go"
 	"github.com/dtylman/aitasks/tasks/translate"
+
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
@@ -25,6 +26,7 @@ type TranslationDocument struct {
 // Translator is responsible for translating text using DeepSeek API
 type Translator struct {
 	client        *deepseek.Client
+	task          *translate.Task
 	project       *translation.Project
 	inTranslation map[string]time.Time
 	mutex         sync.Mutex
@@ -42,11 +44,16 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	if client == nil {
 		return nil, fmt.Errorf("failed to create DeepSeek client")
 	}
+	llm, err := GetLanguageModel()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get language model: %v", err)
+	}
 	style := PromptStyle(project.Style)
 	if style == "" {
 		style = StyleStrict
 	}
 	return &Translator{client: client,
+		task:          translate.New(llm),
 		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
@@ -64,54 +71,8 @@ func (t *Translator) SetStyle(style PromptStyle) {
 // PopulateBookDetails retrieves details about a book using the DeepSeek API.
 func (t *Translator) PopulateBookDetails(ctx context.Context) (*translate.ProjectContext, error) {
 	book := t.project.GetTranslationContext()
-
 	log.Printf("requesting book details for: %s", book.Title)
-
-	systemPrompt, err := GetBookDetailsPrompt(t.style, RoleSystem, book)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create system prompt: %v", err)
-	}
-	userPrompt, err := GetBookDetailsPrompt(t.style, RoleUser, book)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user prompt: %v", err)
-	}
-
-	resp, err := t.client.CreateChatCompletion(ctx, &deepseek.ChatCompletionRequest{
-		Model: deepseek.DeepSeekChat,
-		Messages: []deepseek.ChatCompletionMessage{
-			{
-				Role:    deepseek.ChatMessageRoleSystem,
-				Content: systemPrompt,
-			},
-			{
-				Role:    deepseek.ChatMessageRoleUser,
-				Content: userPrompt,
-			},
-		},
-		JSONMode: true,
-	})
-
-	if resp == nil && err == nil {
-		return nil, errors.New("received nil response from DeepSeek API")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chat completion: %v", err)
-	}
-
-	if len(resp.Choices) == 0 {
-		return nil, errors.New("no choices returned from chat completion")
-	}
-
-	log.Printf("DeepSeek response: %s", resp.Choices[0].Message.Content)
-
-	var bookResponse translate.ProjectContext
-	extractor := deepseek.NewJSONExtractor(nil)
-	err = extractor.ExtractJSON(resp, &bookResponse)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract JSON from response: %v", err)
-	}
-
-	return &bookResponse, nil
+	return t.task.PopulateProject(ctx, book)
 }
 
 // IsTranslationInProgress checks if a translation is in progress for a given paragraph ID.
