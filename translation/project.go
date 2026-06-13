@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/dtylman/aitasks/tasks/translate"
 	"github.com/dtylman/saatool/config"
 )
 
@@ -52,14 +53,14 @@ type Unit struct {
 	Paragraphs []Paragraph `json:"paragraphs"`
 }
 
-// BookDetails represents the details of a book.
-type BookDetails struct {
-	Title          string      `json:"title"`
-	Author         string      `json:"author"`
-	Synopsis       string      `json:"synopsis"`
-	Genre          string      `json:"genre"`
-	MainCharacters []Character `json:"main_characters"`
-}
+// // BookDetails represents the details of a book.
+// type BookDetails struct {
+// 	Title          string      `json:"title"`
+// 	Author         string      `json:"author"`
+// 	Synopsis       string      `json:"synopsis"`
+// 	Genre          string      `json:"genre"`
+// 	MainCharacters []Character `json:"main_characters"`
+// }
 
 // Project represents a translation project with source and target languages and paragraphs.
 type Project struct {
@@ -74,7 +75,7 @@ type Project struct {
 	// Genre is the genre of the text.
 	Genre string `json:"genre"`
 	// Characters is a list of characters involved in the text.
-	Characters []Character `json:"characters"`
+	Characters []translate.Character `json:"characters"`
 	// Source is the source language unit containing paragraphs to be translated.
 	Source Unit `json:"source"`
 	// Target is the target language unit where the translated paragraphs will be stored.
@@ -135,7 +136,7 @@ func NewProject(name string) *Project {
 		Name:               name,
 		Source:             Unit{Paragraphs: make([]Paragraph, 0)},
 		Target:             Unit{Paragraphs: make([]Paragraph, 0)},
-		Characters:         make([]Character, 0),
+		Characters:         make([]translate.Character, 0),
 		Style:              "strict",
 		LastSourceView:     true,
 		LastParagraphIndex: 0,
@@ -301,17 +302,18 @@ func (p *Project) SetPosition(view bool, index int) {
 }
 
 // BookDetails returns the book details of the project.
-func (p *Project) BookDetails() *BookDetails {
+func (p *Project) BookDetails() *translate.ProjectContext {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	return &BookDetails{
-		Title:          p.Title,
-		Author:         p.Author,
-		Synopsis:       p.Synopsis,
-		Genre:          p.Genre,
-		MainCharacters: p.Characters,
+	return &translate.ProjectContext{
+		Title:      p.Title,
+		Author:     p.Author,
+		Synopsis:   p.Synopsis,
+		Genre:      p.Genre,
+		Characters: p.Characters,
 	}
+
 }
 
 // DeleteProject deletes the project file from disk.

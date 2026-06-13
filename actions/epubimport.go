@@ -124,7 +124,7 @@ func (ec *EPubImportAction) getBookDetails(ctx context.Context, cmd *cli.Command
 	ec.project.Author = bookDetails.Author
 	ec.project.Genre = bookDetails.Genre
 	ec.project.Synopsis = bookDetails.Synopsis
-	ec.project.Characters = bookDetails.MainCharacters
+	ec.project.Characters = bookDetails.Characters
 
 	log.Printf("Book details retrieved: %s by %s", bookDetails.Title, bookDetails.Author)
 	return nil

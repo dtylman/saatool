@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/dtylman/saatool/translation"
+	"github.com/dtylman/aitasks/tasks/translate"
 )
 
 // PromptStyle represents a translation style flavor.
@@ -105,7 +105,7 @@ func StyleNames() []string {
 
 // GetBookDetailsPrompt looks up a book_details prompt template by style and role,
 // marshaling the BookDetails struct to JSON for template rendering.
-func GetBookDetailsPrompt(style PromptStyle, role PromptRole, book *translation.BookDetails) (string, error) {
+func GetBookDetailsPrompt(style PromptStyle, role PromptRole, book *translate.ProjectContext) (string, error) {
 	bookJSON, err := json.Marshal(book)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal book details: %v", err)

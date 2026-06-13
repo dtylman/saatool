@@ -9,6 +9,7 @@ import (
 	"time"
 
 	deepseek "github.com/cohesion-org/deepseek-go"
+	"github.com/dtylman/aitasks/tasks/translate"
 	"github.com/dtylman/saatool/config"
 	"github.com/dtylman/saatool/translation"
 )
@@ -61,7 +62,7 @@ func (t *Translator) SetStyle(style PromptStyle) {
 }
 
 // GetBookDetails retrieves details about a book using the DeepSeek API.
-func (t *Translator) GetBookDetails(ctx context.Context) (*translation.BookDetails, error) {
+func (t *Translator) GetBookDetails(ctx context.Context) (*translate.ProjectContext, error) {
 	book := t.project.BookDetails()
 
 	log.Printf("requesting book details for: %s", book.Title)
@@ -103,7 +104,7 @@ func (t *Translator) GetBookDetails(ctx context.Context) (*translation.BookDetai
 
 	log.Printf("DeepSeek response: %s", resp.Choices[0].Message.Content)
 
-	var bookResponse translation.BookDetails
+	var bookResponse translate.ProjectContext
 	extractor := deepseek.NewJSONExtractor(nil)
 	err = extractor.ExtractJSON(resp, &bookResponse)
 	if err != nil {
