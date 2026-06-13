@@ -41,9 +41,12 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get language model: %v", err)
 	}
+	task := translate.New(llm)
+	task.AutoProofread = config.Options.AutoProofread
+	task.MaxRetries = 3
 
 	return &Translator{
-		task:          translate.New(llm),
+		task:          task,
 		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
