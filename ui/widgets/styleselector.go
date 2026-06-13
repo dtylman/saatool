@@ -13,16 +13,16 @@ type StyleSelector struct {
 
 // NewStyleSelector creates a new StyleSelector populated with the available styles.
 // The onChange callback is called with the selected PromptStyle when the user picks one.
-func NewStyleSelector(selected ai.PromptStyle, onChange func(ai.PromptStyle)) *StyleSelector {
+func NewStyleSelector(selected string, onChange func(string)) *StyleSelector {
 	names := ai.StyleNames()
 	s := &StyleSelector{}
 	s.Options = names
 	s.OnChanged = func(value string) {
 		if onChange != nil {
-			onChange(ai.PromptStyle(value))
+			onChange(value)
 		}
 	}
-	s.Selected = string(selected)
+	s.Selected = selected
 	s.ExtendBaseWidget(s)
 	return s
 }

@@ -229,6 +229,13 @@ func (p *Project) SetName(name string) {
 	p.Name = name
 }
 
+// SetStyle sets the translation style of the project.
+func (p *Project) SetStyle(style string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.Style = style
+}
+
 // SetTranslation sets the translation for a specific paragraph in the project.
 func (p *Project) SetTranslation(paragraph int, translated string) error {
 	p.mutex.Lock()

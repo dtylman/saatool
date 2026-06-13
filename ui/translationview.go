@@ -65,7 +65,7 @@ func NewTranslationView(project *translation.Project) (*TranslationView, error) 
 
 	tv.btnProgress = widget.NewButton("Go to Paragraph", tv.onProgressTapped)
 	Main.AddActionWidget(tv.btnProgress)
-	Main.AddActionWidget(widgets.NewStyleSelector(ai.PromptStyle(project.Style), func(style ai.PromptStyle) {
+	Main.AddActionWidget(widgets.NewStyleSelector(project.Style, func(style string) {
 		tv.onStyleChanged(style)
 	}))
 
@@ -339,7 +339,7 @@ func (tv *TranslationView) onRetranslateParagraph() {
 
 // onStyleChanged handles the style selector change. It asks the user for confirmation
 // before clearing translations from the current paragraph forward.
-func (tv *TranslationView) onStyleChanged(style ai.PromptStyle) {
+func (tv *TranslationView) onStyleChanged(style string) {
 	// Find the range of paragraphs that have translations from current forward
 	total := len(tv.project.Target.Paragraphs)
 	lastTranslated := -1
@@ -351,7 +351,7 @@ func (tv *TranslationView) onStyleChanged(style ai.PromptStyle) {
 
 	if lastTranslated < 0 {
 		// No translated paragraphs to clear, just switch style
-		tv.translator.SetStyle(style)
+		tv.project.SetStyle(style)
 		return
 	}
 
@@ -362,7 +362,7 @@ func (tv *TranslationView) onStyleChanged(style ai.PromptStyle) {
 		if !ok {
 			return
 		}
-		tv.translator.SetStyle(style)
+		tv.project.SetStyle(style)
 		for i := tv.paragraphIndex; i < total; i++ {
 			if tv.project.Target.Paragraphs[i].Text != "" {
 				_ = tv.project.SetTranslation(i, "")

@@ -29,7 +29,6 @@ type Translator struct {
 	inTranslation map[string]time.Time
 	mutex         sync.Mutex
 	stats         *TranslationStatistics
-	style         PromptStyle
 	//OnTranslationComplete happens after a paragraph is translated and saved to the project
 	OnTranslationComplete func(paragraphIndex int, translation string)
 }
@@ -42,24 +41,14 @@ func NewTranslator(project *translation.Project) (*Translator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get language model: %v", err)
 	}
-	style := PromptStyle(project.Style)
-	if style == "" {
-		style = StyleStrict
-	}
+
 	return &Translator{
 		task:          translate.New(llm),
 		project:       project,
 		inTranslation: make(map[string]time.Time),
 		mutex:         sync.Mutex{},
 		stats:         NewTranslationStatistics(),
-		style:         style,
 	}, nil
-}
-
-// SetStyle sets the translation prompt style and updates the project.
-func (t *Translator) SetStyle(style PromptStyle) {
-	t.style = style
-	t.project.Style = string(style)
 }
 
 // PopulateBookDetails retrieves details about a book using the DeepSeek API.

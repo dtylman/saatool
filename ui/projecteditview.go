@@ -6,7 +6,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 	"github.com/dtylman/saatool/ui/widgets"
 )
@@ -36,7 +35,7 @@ func NewProjectEditView(project *translation.Project) *ProjectEditView {
 		entryToLang:   widget.NewEntry(),
 	}
 
-	pv.styleSelector = widgets.NewStyleSelector(ai.PromptStyle(project.Style), nil)
+	pv.styleSelector = widgets.NewStyleSelector(project.Style, nil)
 
 	pv.entryTitle.SetText(project.Title)
 	pv.entryAuthor.SetText(project.Author)

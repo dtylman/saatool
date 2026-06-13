@@ -94,11 +94,7 @@ func GetStyledPrompt(style PromptStyle, role PromptRole, method PromptMethod, do
 
 // StyleNames returns the list of available style names from prompts.json.
 func StyleNames() []string {
-	names := make([]string, len(promptStyles))
-	for i, s := range promptStyles {
-		names[i] = s.Style
-	}
-	return names
+	return []string{"academic", "archaic", "literary", "rap", "strict"}
 }
 
 // getPromptByMethod is the internal lookup/render for any method with arbitrary params.
