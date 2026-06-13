@@ -301,8 +301,8 @@ func (p *Project) SetPosition(view bool, index int) {
 	p.LastParagraphIndex = index
 }
 
-// BookDetails returns the book details of the project.
-func (p *Project) BookDetails() *translate.ProjectContext {
+// GetTranslationContext returns the book details of the project.
+func (p *Project) GetTranslationContext() *translate.ProjectContext {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -312,6 +312,8 @@ func (p *Project) BookDetails() *translate.ProjectContext {
 		Synopsis:   p.Synopsis,
 		Genre:      p.Genre,
 		Characters: p.Characters,
+		//Glossary: , 			// TODO: add glossary support to project and return here
+		//Instructions: ,
 	}
 
 }

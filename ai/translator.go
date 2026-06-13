@@ -61,9 +61,9 @@ func (t *Translator) SetStyle(style PromptStyle) {
 	t.project.Style = string(style)
 }
 
-// GetBookDetails retrieves details about a book using the DeepSeek API.
-func (t *Translator) GetBookDetails(ctx context.Context) (*translate.ProjectContext, error) {
-	book := t.project.BookDetails()
+// PopulateBookDetails retrieves details about a book using the DeepSeek API.
+func (t *Translator) PopulateBookDetails(ctx context.Context) (*translate.ProjectContext, error) {
+	book := t.project.GetTranslationContext()
 
 	log.Printf("requesting book details for: %s", book.Title)
 
@@ -383,6 +383,8 @@ func (t *Translator) TranslateParagraph(ctx context.Context, paragraphIndex int)
 	defer t.stats.Completed(rc.sourceParagraph.ID)
 
 	translationDocument := t.newTranslationDocument(paragraphIndex, rc.sourceLang, rc.targetLang, config.Options.TranslationDocSize)
+
+	//req := translate.Request{}
 
 	systemPrompt, err := GetStyledPrompt(t.style, RoleSystem, MethodTranslate, translationDocument)
 	if err != nil {

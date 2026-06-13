@@ -117,7 +117,7 @@ func (ec *EPubImportAction) getBookDetails(ctx context.Context, cmd *cli.Command
 	if err != nil {
 		return fmt.Errorf("failed to create translator: %w", err)
 	}
-	bookDetails, err := translator.GetBookDetails(ctx)
+	bookDetails, err := translator.PopulateBookDetails(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get book details: %w", err)
 	}
