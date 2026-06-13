@@ -2,12 +2,11 @@ module github.com/dtylman/saatool
 
 go 1.25.1
 
-replace github.com/dtylman/aitasks => /home/danny/src/aitasks
-
 require (
 	fyne.io/fyne/v2 v2.7.4
-	github.com/dtylman/aitasks v0.0.0-20260613062951-6607a56aef69
+	github.com/dtylman/aitasks v0.0.0-20260613080214-1b1fc3d68432
 	github.com/emvi/iso-639-1 v1.1.1
+	github.com/iancoleman/strcase v0.3.0
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/stretchr/testify v1.11.1
 	github.com/taylorskalyo/goreader v1.0.1
@@ -39,7 +38,6 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/hack-pad/go-indexeddb v0.3.2 // indirect
 	github.com/hack-pad/safejs v0.1.1 // indirect
-	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade // indirect
 	github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25 // indirect
 	github.com/kr/text v0.2.0 // indirect

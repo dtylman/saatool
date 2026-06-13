@@ -13,8 +13,8 @@ github.com/clipperhouse/uax29/v2 v2.7.0/go.mod h1:EFJ2TJMRUaplDxHKj1qAEhCtQPW2tJ
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dtylman/aitasks v0.0.0-20260613062951-6607a56aef69 h1:2tvOJ80EVOfZiDMpaiiXTXCeA2Y+t/XIhIg56zaAyOI=
-github.com/dtylman/aitasks v0.0.0-20260613062951-6607a56aef69/go.mod h1:3xhH5cgmtPORq2beRDA4SYzfN5TKKR2GP5tnA6lQHK4=
+github.com/dtylman/aitasks v0.0.0-20260613080214-1b1fc3d68432 h1:hU8hYhbUIJfz7Pi3+iK4G53fnslYUfdkxm3ZQOz6QEo=
+github.com/dtylman/aitasks v0.0.0-20260613080214-1b1fc3d68432/go.mod h1:XwzVf0oAlbcQ19M2h0XaUm4RrPxHB9fkjf4mQh13/n8=
 github.com/emvi/iso-639-1 v1.1.1 h1:7jrl1Sqw9ZYWmCOaH+cpQotLbGr/khwlLPXlBvE8WXU=
 github.com/emvi/iso-639-1 v1.1.1/go.mod h1:CSA53/Tx0xF9bk2DEA0Mr0wTdIxq7pqoVZgBOfoL5GI=
 github.com/fatih/color v1.19.0 h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=
