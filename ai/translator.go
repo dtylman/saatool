@@ -85,16 +85,18 @@ func (t *Translator) newTranslationRequest(paragraphIndex int, sourceLang string
 
 	from := paragraphIndex - historySize
 	for i := from; i < paragraphIndex; i++ {
-		source, err := t.project.GetSourceParagraph(i)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get source paragraph %d: %v", i, err)
+		if i >= 0 {
+			source, err := t.project.GetSourceParagraph(i)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get source paragraph %d: %v", i, err)
+			}
+			target, err := t.project.GetTargetParagraph(i)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get target paragraph %d: %v", i, err)
+			}
+			req.PreviousSource = append(req.PreviousSource, source.Text)
+			req.PreviousTarget = append(req.PreviousTarget, target.Text)
 		}
-		target, err := t.project.GetTargetParagraph(i)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get target paragraph %d: %v", i, err)
-		}
-		req.PreviousSource = append(req.PreviousSource, source.Text)
-		req.PreviousTarget = append(req.PreviousTarget, target.Text)
 	}
 
 	sourceParagraph, err := t.project.GetSourceParagraph(paragraphIndex)
