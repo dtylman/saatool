@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/dtylman/aitasks/tasks/ocr"
 	"github.com/dtylman/saatool/ai"
 	"github.com/dtylman/saatool/translation"
 	"github.com/ledongthuc/pdf"
@@ -18,6 +19,7 @@ import (
 // PDFImportAction represents the action to import a PDF file
 type PDFImportAction struct {
 	project *translation.Project
+	task    *ocr.Task
 }
 
 // Name returns the name of the action
@@ -64,18 +66,6 @@ func (a *PDFImportAction) Flags() []cli.Flag {
 			Aliases: []string{"l"},
 			Usage:   "Languages for OCR, comma separated (e.g. eng,pol)",
 			Value:   "eng",
-		},
-		&cli.Float64Flag{
-			Name:    "font-delta",
-			Aliases: []string{"fd"},
-			Usage:   "Font size delta to consider a new text block",
-			Value:   15.00,
-		},
-		&cli.Float64Flag{
-			Name:    "y-delta",
-			Aliases: []string{"yd"},
-			Usage:   "Y position delta to consider a new text block, if -1, use 2x average font size",
-			Value:   -1.0,
 		},
 		&cli.StringFlag{
 			Name:     "author",
@@ -129,8 +119,6 @@ func (a *PDFImportAction) Action(ctx context.Context, cmd *cli.Command) error {
 	if os.IsNotExist(err) {
 		return fmt.Errorf("input file does not exist: %s", input)
 	}
-
-	//config.Options.DeepSeekAPIKey = cmd.String("key")
 
 	needOCR := cmd.Bool("ocr")
 	if !needOCR {
@@ -200,60 +188,76 @@ func (a *PDFImportAction) processPDFFile(ctx context.Context, input string, cmd 
 func (a *PDFImportAction) processPage(ctx context.Context, cmd *cli.Command, p *pdf.Page, pageNum int) error {
 	log.Printf("Processing page %d", pageNum)
 
-	fontDelta := cmd.Float64("font-delta")
-	yDelta := cmd.Float64("y-delta")
-
-	rt := newRawText(fontDelta, yDelta)
-
 	if p.V.IsNull() {
 		return nil
 	}
 
-	for _, text := range p.Content().Text {
-		rt.addText(text)
+	rows, err := p.GetTextByRow()
+	if err != nil {
+		return fmt.Errorf("failed to get text by row for page %d: %w", pageNum, err)
 	}
 
-	req := ai.OCRRequest{
-		Page:     pageNum,
-		OCRTexts: make([]ai.OCRInputText, 0),
+	avgLineDetla := int64(0)
+	for i := 1; i < len(rows); i++ {
+		lineDelta := rows[i].Position - rows[i-1].Position
+		avgLineDetla += lineDelta
+	}
+	if len(rows) > 1 {
+		avgLineDetla /= int64(len(rows) - 1)
+	}
+
+	var pageContent strings.Builder
+	for i, row := range rows {
+		if i > 0 {
+			lineDelta := row.Position - rows[i-1].Position
+			emptyLines := int(math.Round(float64(lineDelta) / float64(avgLineDetla)))
+			for j := 1; j < emptyLines; j++ {
+				pageContent.WriteString("\n")
+			}
+		}
+		for _, text := range row.Content {
+			pageContent.WriteString(text.S)
+		}
+		pageContent.WriteString("\n")
+	}
+
+	fmt.Printf("Page %v, content: %v", pageNum, pageContent.String())
+
+	llm, err := ai.GetLanguageModel()
+	if err != nil {
+		return fmt.Errorf("failed to create language model: %w", err)
+	}
+
+	ocrProjectContext := &ocr.ProjectContext{
 		Title:    a.project.Title,
 		Author:   a.project.Author,
-		Synopsis: a.project.Synopsis,
 		Genre:    a.project.Genre,
+		Synopsis: a.project.Synopsis,
+	}
+	task := ocr.New(llm)
+	req := &ocr.Request{
+		Text:           pageContent.String(),
+		ProjectContext: ocrProjectContext,
 	}
 
-	// Process the raw text blocks
-	for _, block := range rt.Blocks {
-		req.OCRTexts = append(req.OCRTexts, ai.OCRInputText{
-			Text:     block.Text,
-			FontSize: block.FontSize,
-		})
-	}
-
-	ocrCleaner, err := ai.NewOCRCleaner()
+	resp, err := task.Clean(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to create OCR cleaner: %w", err)
-	}
-	result, err := ocrCleaner.CleanOCR(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("failed to clean OCR text: %w", err)
+		return fmt.Errorf("failed to clean page %d: %w", pageNum, err)
 	}
 
-	log.Printf("got %d paragraphs from OCR cleaner", len(result.Body))
-
-	for _, para := range result.Body {
-		sourceParagraph := translation.Paragraph{
-			Text: para.Text,
-		}
-		a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, sourceParagraph)
+	text := resp.Body
+	if resp.Footnotes != "" {
+		text += "\n\n=============\n" + resp.Footnotes
 	}
 
-	if result.FootNotes != "" {
-		sourceParagraph := translation.Paragraph{
-			Text: "--------\n" + result.FootNotes,
-		}
-		a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, sourceParagraph)
+	paragraph := translation.Paragraph{
+		Text: text,
 	}
+
+	paragraph.ID = paragraph.CalcID()
+	a.project.Source.Paragraphs = append(a.project.Source.Paragraphs, paragraph)
+
+	log.Printf("Page %d cleaned, result: %v", pageNum, resp)
 
 	return nil
 }
@@ -264,6 +268,16 @@ func (a *PDFImportAction) createProject(ctx context.Context, cmd *cli.Command) e
 		return fmt.Errorf("title is required")
 	}
 	a.project = translation.NewProject(title)
+
+	projectFileName := a.project.ProjectFileName()
+	existingProject, err := translation.LoadProject(projectFileName)
+	if err == nil && existingProject != nil {
+		log.Printf("Project file %s already exists, loading existing project", projectFileName)
+		a.project = existingProject
+		return nil
+	}
+	log.Printf("Creating new project: %s", title)
+
 	a.project.Title = title
 	a.project.Author = cmd.String("author")
 	a.project.Synopsis = cmd.String("synopsis")
@@ -293,7 +307,15 @@ func (a *PDFImportAction) createProject(ctx context.Context, cmd *cli.Command) e
 	a.project.Synopsis = bookDetails.Synopsis
 	a.project.Genre = bookDetails.Genre
 
+	a.project.Normalize()
+	fileName, err := a.project.Save()
+	if err != nil {
+		return fmt.Errorf("failed to save project: %w", err)
+	}
+	log.Printf("Project created and saved to %s", fileName)
+
 	return nil
+
 }
 
 // needsOCR checks if the PDF file likely needs OCR by analyzing its content.
@@ -367,77 +389,5 @@ func (a *PDFImportAction) runOCR(fileName string, ctx context.Context, cmd *cli.
 		return "", fmt.Errorf("failed to run ocrmypdf: %w", err)
 	}
 	return outputFile, nil
-
-}
-
-type RawTextBlock struct {
-	Text     string
-	FontSize float64
-}
-
-type RawText struct {
-	Blocks        []RawTextBlock
-	lastY         float64
-	totalFonts    int
-	totalFontSize float64
-	fontDelta     float64
-	yDelta        float64
-}
-
-func newRawText(fontDelta float64, yDelta float64) *RawText {
-	rt := RawText{
-		Blocks:    make([]RawTextBlock, 0),
-		fontDelta: fontDelta,
-		yDelta:    yDelta,
-	}
-	rt.pushBlock()
-	return &rt
-
-}
-
-func (rt *RawText) getYDelta() float64 {
-	if rt.yDelta == -1 {
-		return rt.averageFontSize(nil) * 2
-	}
-	return rt.yDelta
-}
-
-func (rt *RawText) averageFontSize(t *pdf.Text) float64 {
-	if rt.totalFonts == 0 {
-		if t != nil {
-			return math.Abs(t.FontSize)
-		}
-		return 0.0
-	}
-	return rt.totalFontSize / float64(rt.totalFonts)
-}
-
-func (rt *RawText) addText(t pdf.Text) {
-	deltaY := math.Abs(t.Y - rt.lastY)
-	fontSize := math.Abs(t.FontSize)
-	fontDelta := math.Abs(fontSize - rt.averageFontSize(&t))
-	if deltaY > rt.getYDelta() {
-		// new block
-		rt.pushBlock()
-	} else if fontDelta > rt.fontDelta {
-		// new block
-		rt.pushBlock()
-	}
-	// append to last block
-	lastBlock := &rt.Blocks[len(rt.Blocks)-1]
-	lastBlock.Text += t.S
-	rt.lastY = t.Y
-	rt.totalFonts++
-	rt.totalFontSize += fontSize
-}
-
-func (rt *RawText) pushBlock() {
-	if len(rt.Blocks) > 0 {
-		lastBlock := &rt.Blocks[len(rt.Blocks)-1]
-		lastBlock.FontSize = rt.averageFontSize(nil)
-	}
-	rt.Blocks = append(rt.Blocks, RawTextBlock{})
-	rt.totalFonts = 0
-	rt.totalFontSize = 0
 
 }

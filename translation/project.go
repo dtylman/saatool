@@ -15,6 +15,7 @@ import (
 
 	"github.com/dtylman/aitasks/tasks/translate"
 	"github.com/dtylman/saatool/config"
+	"github.com/iancoleman/strcase"
 )
 
 // Paragraph represents a single paragraph in a translation project.
@@ -151,15 +152,18 @@ func LoadProject(path string) (*Project, error) {
 	return &proj, nil
 }
 
+// ProjectFileName returns the file name for the project based on its name.
+func (p *Project) ProjectFileName() string {
+	if p.Name == "" {
+		return "unnamed_project" + config.ProjectFileExt
+	}
+	fileName := strcase.ToSnake(p.Name) + config.ProjectFileExt
+	return filepath.Join(config.ProjectsDir(), fileName)
+}
+
 // Save saves the project to its file.
 func (p *Project) Save() (string, error) {
-
-	log.Printf("saving project '%v'", p.Name)
-	if p.Name == "" {
-		return "", fmt.Errorf("project name is empty")
-	}
-
-	fileName := filepath.Join(config.ProjectsDir(), p.Name)
+	fileName := p.ProjectFileName()
 	log.Printf("writing project to %s", fileName)
 
 	if filepath.Ext(fileName) != config.ProjectFileExt {

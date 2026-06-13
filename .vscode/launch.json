@@ -18,13 +18,15 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/saatooltool",
-            "args": [
-                //import pdf --input ~/Documents/huji/13246/1_Shaye_J_D_Cohen_The_Conversion_of_Antoni.pdf --from english --to hebrew  
+            "args": [                
                 "import",
                 "pdf",
-                "--input", "/home/danny/Documents/huji/13246/1_Shaye_J_D_Cohen_The_Conversion_of_Antoni.pdf",
+                "--input", "/home/danny/Documents/huji/130704/Barnay_TheJews_In_Palstine_In_the_18th_cent_ocr.pdf",
                 "--from=english",
                 "--to=hebrew",
+                "--title", "Barnay_TheJews_In_Palstine_In_the_18th_cent_ocr",
+                "--author", "Barnay",
+
             ]             
         }
     ]
