@@ -170,6 +170,7 @@ func (pl *ProjectsView) onProjectFileOpened(reader fyne.URIReadCloser, err error
 
 // SetProject updates the ProjectCard with the given project details.
 func (ed *ProjectsView) setProject(project *translation.Project) {
+	log.Printf("Setting project: %v", project.Name)
 	ed.selectedProject = project
 	ed.view.Refresh()
 }

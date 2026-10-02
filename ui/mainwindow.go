@@ -174,10 +174,12 @@ func (mw *MainWindow) onLogTapped() {
 }
 
 func (mw *MainWindow) ShowMessage(message string) {
+	log.Printf("Message: %v", message)
 	fyne.Do(dialog.NewInformation("Message", message, mw.window).Show)
 }
 
 func (mw *MainWindow) ShowError(message string) {
+	log.Printf("Error: %v", message)
 	fyne.Do(dialog.NewError(errors.New(message), mw.window).Show)
 }
 
